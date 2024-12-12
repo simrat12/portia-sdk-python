@@ -1,0 +1,52 @@
+name: Version Tag Creation
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Get version from pyproject.toml
+        id: get_version
+        run: |
+          VERSION=$(poetry version --short)
+          echo "Version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Check if version is already tagged
+        run: |
+          if git tag -l "$VERSION"; then
+            echo "Tag $VERSION already exists. Skipping tag creation."
+            exit 0
+          else
+            echo "Tag $VERSION does not exist. Creating new tag."
+          fi
+
+      - name: Create Git tag
+        run: |
+          git tag $VERSION
+          git push origin $VERSION
+        if: success()
+
+      - name: Publish to PyPI
+        run: |
+          # Build the package
+          poetry build
+
+          # Publish to PyPI (Make sure to configure your PyPI token)
+          poetry publish --build --repository pypi --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_PASSWORD }}

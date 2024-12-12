@@ -1,0 +1,25 @@
+name: Python Testing
+
+on:
+  pull_request:
+    branches:
+      - "*"
+
+jobs:
+  testing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install poetry
+        run: pipx install poetry
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "poetry"
+
+      - name: install dependencies
+        run: poetry install --all-extras
+
+      - name: tests + coverage
+        run: poetry run pytest --cov --cov-fail-under 0 --log-cli-level=WARNING
