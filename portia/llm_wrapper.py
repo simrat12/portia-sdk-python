@@ -156,7 +156,7 @@ class LLMWrapper(BaseLLMWrapper):
                 return ChatOpenAI(
                     name=self.model_name,
                     model=self.model_name,
-                    temperature=self.model_temperature,
+                    # temperature=self.model_temperature,
                     seed=self.model_seed,
                     api_key=self.config.openai_api_key,
                     max_retries=3,
@@ -207,7 +207,7 @@ class LLMWrapper(BaseLLMWrapper):
                     response_model=response_model,
                     messages=messages,
                     model=self.model_name,
-                    temperature=self.model_temperature,
+                    # temperature=self.model_temperature,
                     seed=self.model_seed,
                 )
             case LLMProvider.ANTHROPIC:

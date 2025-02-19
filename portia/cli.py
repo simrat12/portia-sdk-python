@@ -35,7 +35,7 @@ from portia.execution_context import execution_context
 from portia.logger import logger
 from portia.open_source_tools import example_tool_registry
 from portia.open_source_tools.llm_tool import LLMTool
-from portia.plan import Plan, PlanContext, Step, Variable
+from portia.plan import Plan, PlanContext, Step
 from portia.prefixed_uuid import PlanUUID
 from portia.runner import Runner
 from portia.tool_registry import PortiaToolRegistry

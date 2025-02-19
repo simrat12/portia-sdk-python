@@ -111,6 +111,7 @@ class LLMModel(Enum):
     GPT_4_O = "gpt-4o"
     GPT_4_O_MINI = "gpt-4o-mini"
     GPT_3_5_TURBO = "gpt-3.5-turbo"
+    O3_MINI = "o3-mini"
 
     # Anthropic
     CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
@@ -138,6 +139,7 @@ SUPPORTED_OPENAI_MODELS = [
     LLMModel.GPT_4_O,
     LLMModel.GPT_4_O_MINI,
     LLMModel.GPT_3_5_TURBO,
+    LLMModel.O3_MINI,
 ]
 
 SUPPORTED_ANTHROPIC_MODELS = [
@@ -531,7 +533,7 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
     return Config(
         storage_class=kwargs.pop("storage_class", StorageClass.MEMORY),
         llm_provider=kwargs.pop("llm_provider", LLMProvider.OPENAI),
-        llm_model_name=kwargs.pop("llm_model_name", LLMModel.GPT_4_O_MINI),
+        llm_model_name=kwargs.pop("llm_model_name", LLMModel.O3_MINI),
         default_planner=kwargs.pop("default_planner", PlannerType.ONE_SHOT),
         llm_model_temperature=kwargs.pop("llm_model_temperature", 0),
         llm_model_seed=kwargs.pop("llm_model_seed", 443),
