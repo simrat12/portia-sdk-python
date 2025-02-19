@@ -13,7 +13,7 @@
     <Example>
         <Request>
             <Tools>
-            {{example.plan_context.tool_ids}}
+            {{example.plan_context.tool_ids | replace('"', '') }}
             </Tools>
             <Query>
             {{example.plan_context.query}}
@@ -34,9 +34,6 @@
 </Tools>
 
 <Request>
-    <Tools>
-        {{tools}}
-    </Tools>
     <Query>
         {{query}}
     </Query>
