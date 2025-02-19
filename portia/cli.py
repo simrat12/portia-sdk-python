@@ -35,8 +35,6 @@ from portia.execution_context import execution_context
 from portia.logger import logger
 from portia.open_source_tools import example_tool_registry
 from portia.open_source_tools.llm_tool import LLMTool
-from portia.plan import Plan, PlanContext, Step, Variable
-from portia.prefixed_uuid import PlanUUID
 from portia.runner import Runner
 from portia.tool_registry import PortiaToolRegistry
 from portia.workflow import WorkflowState
@@ -252,66 +250,13 @@ def plan(
     **kwargs,  # noqa: ANN003
 ) -> None:
     """Plan a query."""
-    load_dotenv()
     cli_config, config = _get_config(**kwargs)
-
-    config = Config.from_default(
-        storage_class=StorageClass.CLOUD,
-    )
-
-    plan_instance = Plan(
-        id=PlanUUID(),
-        plan_context=PlanContext(
-            query="Send an email to robbie@acme.ai saying 'if you deep fry it it all tastes the same'.",
-            tool_ids=[
-                "portia::google_docs::get_document_tool",
-                "google::docs::get_structured_document_tool",
-                "portia::google_drive_search_tool",
-                "portia::google_calendar_check_availability_tool",
-                "portia::google_calendar_create_event_tool",
-                "portia::google_calendar_delete_event_tool",
-                "portia::google_calendar_get_event_details_tool",
-                "portia::google_calendar_get_events_by_properties_tool",
-                "portia::google_calendar_modify_event_tool",
-                "portia::google_gmail::draft_email_tool",
-                "portia::google_gmail::search_email_tool",
-                "portia::google_gmail::send_draft_email_tool",
-                "portia::google_gmail::send_email_tool",
-                "portia::google_people_search_contacts_tool",
-                "portia::google_sheets_get_spreadsheet_tool",
-                "portia::slack::bot::list_conversation_ids",
-                "portia::slack::bot::list_user_ids",
-                "portia::slack::bot::send_message",
-                "portia::slack::bot::conversation_history",
-                "portia::slack::user::find_message",
-            ],
-        ),
-        steps=[
-            Step(
-                task="Send an email to robbie@acme.ai saying 'if you deep fry it it all tastes the same'.",
-                inputs=[
-                    Variable(
-                        name="$email_body",
-                        value="if you deep fry it it all tastes the sanme'.",
-                        description="The body of the email confirming the answer.",
-                    ),
-                    Variable(
-                        name="$recipient_email",
-                        value="portiademo@portialabs.ai",
-                        description="The email address to send the confirmation to.",
-                    ),
-                ],
-                tool_id="portia::google_gmail::send_email_tool",
-                output="$email_sent_status",
-            ),
-        ],
-    )
 
     registry = example_tool_registry
     if config.has_api_key(PORTIA_API_KEY):
         registry += PortiaToolRegistry(config)
 
-    runner = Runner(config=config, tools=PortiaToolRegistry(config))
+    runner = Runner(config=config, tools=registry)
 
     with execution_context(end_user_id=cli_config.end_user_id):
         output = runner.generate_plan(query)
