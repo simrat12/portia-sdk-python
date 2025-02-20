@@ -273,7 +273,6 @@ class Config(BaseModel):
         json_log_serialize: Whether to serialize logs in JSON format.
         llm_provider: The LLM provider (e.g., OpenAI, Anthropic).
         llm_model_name: The model to use for LLM tasks.
-        llm_model_temperature: The temperature for LLM generation.
         llm_model_seed: The seed for LLM generation.
         default_agent_type: The default agent type.
         default_planner: The default planner type.
@@ -375,11 +374,6 @@ class Config(BaseModel):
         """Parse llm_model_name to enum if string provided."""
         return parse_str_to_enum(value, LLMModel)
 
-    llm_model_temperature: PositiveNumber = Field(
-        default=0,
-        description="The model temperature to use. A lower number leads to more repeatable results"
-        ", a higher number more creativity.",
-    )
     llm_model_seed: PositiveNumber = Field(
         default=443,
         description="The model seed to use.",
@@ -535,7 +529,6 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
         llm_provider=kwargs.pop("llm_provider", LLMProvider.OPENAI),
         llm_model_name=kwargs.pop("llm_model_name", LLMModel.O3_MINI),
         default_planner=kwargs.pop("default_planner", PlannerType.ONE_SHOT),
-        llm_model_temperature=kwargs.pop("llm_model_temperature", 0),
         llm_model_seed=kwargs.pop("llm_model_seed", 443),
         default_agent_type=kwargs.pop("default_agent_type", AgentType.VERIFIER),
         **kwargs,
