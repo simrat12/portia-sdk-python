@@ -11,16 +11,18 @@ import pytest
 from pydantic import HttpUrl
 
 from portia.agents.base_agent import Output
-from portia.clarification import ActionClarification, Clarification, InputClarification
+from portia.clarification import ActionClarification, InputClarification
 from portia.config import StorageClass
 from portia.errors import InvalidWorkflowStateError, PlanError, WorkflowNotFoundError
 from portia.llm_wrapper import LLMWrapper
+from portia.open_source_tools.llm_tool import LLMTool
+from portia.open_source_tools.registry import example_tool_registry
 from portia.plan import Plan, PlanContext, ReadOnlyPlan, Step
 from portia.planners.planner import StepsOrError
 from portia.runner import Runner
 from portia.tool import Tool, ToolRunContext
 from portia.tool_registry import InMemoryToolRegistry
-from portia.workflow import ReadOnlyWorkflow, Workflow, WorkflowState, WorkflowUUID
+from portia.workflow import ReadOnlyWorkflow, Workflow, WorkflowOutputs, WorkflowState, WorkflowUUID
 from tests.utils import AdditionTool, ClarificationTool, get_test_config, get_test_workflow
 
 
@@ -257,19 +259,19 @@ def test_runner_wait_for_ready_tool(runner: Runner) -> None:
             "Clarification: The value of the Clarification",
         )
 
-        def run(self, ctx: ToolRunContext, user_guidance: str) -> Clarification:  # noqa: ARG002
-            return ActionClarification(
-                workflow_id=ctx.workflow_id,
-                user_guidance="",
-                action_url=HttpUrl(""),
-            )
+        def run(self, ctx: ToolRunContext, user_guidance: str) -> str:  # noqa: ARG002
+            return "result"
 
         def ready(self, ctx: ToolRunContext) -> bool:  # noqa: ARG002
             mock_call_count.count += 1
             return mock_call_count.count == 3
 
     runner.tool_registry = InMemoryToolRegistry.from_local_tools([ReadyTool()])
-
+    step0 = Step(
+        task="Do something",
+        inputs=[],
+        output="$ctx_0",
+    )
     step1 = Step(
         task="Save Context",
         inputs=[],
@@ -281,17 +283,48 @@ def test_runner_wait_for_ready_tool(runner: Runner) -> None:
             query="run the tool",
             tool_ids=["ready_tool"],
         ),
-        steps=[step1],
+        steps=[step0, step1],
+    )
+    unresolved_action = ActionClarification(
+        workflow_id=WorkflowUUID(),
+        user_guidance="",
+        action_url=HttpUrl("https://unresolved.step1.com"),
+        step=1,
     )
     workflow = Workflow(
         plan_id=plan.id,
-        current_step_index=0,
+        current_step_index=1,
         state=WorkflowState.NEED_CLARIFICATION,
+        outputs=WorkflowOutputs(
+            clarifications=[
+                ActionClarification(
+                    workflow_id=WorkflowUUID(),
+                    user_guidance="",
+                    action_url=HttpUrl("https://resolved.step0.com"),
+                    resolved=True,
+                    step=0,
+                ),
+                ActionClarification(
+                    workflow_id=WorkflowUUID(),
+                    user_guidance="",
+                    action_url=HttpUrl("https://resolved.step1.com"),
+                    resolved=True,
+                    step=1,
+                ),
+                unresolved_action,
+            ],
+        ),
     )
     runner.storage.save_plan(plan)
     runner.storage.save_workflow(workflow)
+    assert workflow.get_outstanding_clarifications() == [unresolved_action]
     workflow = runner.wait_for_ready(workflow)
     assert workflow.state == WorkflowState.READY_TO_RESUME
+    assert workflow.get_outstanding_clarifications() == []
+    for clarification in workflow.outputs.clarifications:
+        if clarification.step == 1:
+            assert clarification.resolved
+            assert clarification.response == "complete"
 
 
 def test_runner_execute_query_with_summary(runner: Runner) -> None:
@@ -472,3 +505,38 @@ def test_runner_resolve_clarification(runner: Runner) -> None:
 
     workflow = runner.resolve_clarification(clarification, "test", workflow)
     assert workflow.state == WorkflowState.READY_TO_RESUME
+
+
+def test_runner_get_tool_for_step_none_tool_id() -> None:
+    """Test that when step.tool_id is None, LLMTool is used as fallback."""
+    runner = Runner(config=get_test_config(), tools=[AdditionTool()])
+    plan, workflow = get_test_workflow()
+
+    # Create a step with no tool_id
+    step = Step(
+        task="Some task",
+        inputs=[],
+        output="$output",
+        tool_id=None,
+    )
+
+    tool = runner._get_tool_for_step(step, workflow)  # noqa: SLF001
+    assert tool is None
+
+
+def test_get_llm_tool() -> None:
+    """Test special case retrieval of LLMTool as it isn't explicitly in most tool registries."""
+    runner = Runner(config=get_test_config(), tools=example_tool_registry)
+    plan, workflow = get_test_workflow()
+
+    # Create a step with no tool_id
+    step = Step(
+        task="Some task",
+        inputs=[],
+        output="$output",
+        tool_id=LLMTool.LLM_TOOL_ID,
+    )
+
+    tool = runner._get_tool_for_step(step, workflow)  # noqa: SLF001
+    assert tool is not None
+    assert isinstance(tool._child_tool, LLMTool)  # noqa: SLF001 # pyright: ignore[reportAttributeAccessIssue]
