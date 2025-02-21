@@ -28,7 +28,6 @@ from anthropic import Anthropic
 from langchain_anthropic import ChatAnthropic
 from langchain_mistralai import ChatMistralAI
 from langchain_openai import ChatOpenAI
-from langsmith import wrappers
 from mistralai import Mistral
 from openai import OpenAI
 from pydantic import BaseModel
@@ -196,10 +195,8 @@ class LLMWrapper(BaseLLMWrapper):
         match self.llm_provider:
             case LLMProvider.OPENAI:
                 client = instructor.from_openai(
-                    client=wrappers.wrap_openai(
-                        OpenAI(
-                            api_key=self.config.must_get_raw_api_key("openai_api_key"),
-                        ),
+                    client=OpenAI(
+                        api_key=self.config.must_get_raw_api_key("openai_api_key"),
                     ),
                     mode=instructor.Mode.JSON,
                 )
