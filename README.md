@@ -5,8 +5,9 @@
 # Portia SDK Python
 
 Welcome to our repository! Portia AI is an open source developer framework for stateful, authenticated agentic workflows. The core product accessible in this repository is extensible with our complimentary cloud features which are aimed at making production deployments easier and faster.
-Play around, break things and tell us how you're getting on in our <a href="https://discord.gg/DvAJz9ffaR" target="_blank">**Discord channel (↗)**</a>. Most importantly please be kind to your fellow humans (<a href="https://github.com/portiaAI/portia-sdk-python/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer">**Code of Conduct (↗)**</a>). 
+Play around, break things and tell us how you're getting on in our <a href="https://discord.gg/DvAJz9ffaR" target="_blank">**Discord channel (↗)**</a>. Most importantly please be kind to your fellow humans (<a href="https://github.com/portiaAI/portia-sdk-python/blob/main/CODE_OF_CONDUCT.md" target="_blank" rel="noopener noreferrer">**Code of Conduct (↗)**</a>).
 
+If you want to dive straight in with an example, check out our <a href="https://github.com/portiaAI/portia-agent-examples/tree/main/get_started_google_tools" target="_blank">**Google Tools example (↗)**</a>.
 
 ## Why Portia AI
 | Problem | Portia's answer |
@@ -43,6 +44,8 @@ portia-cli run "add 1 + 2"
 
 **All set? Now let's explore some basic usage of the product 🚀**
 
+### E2E example repo
+We have a repo that showcases some of our core concepts to get you started. It's available <a href="https://github.com/portiaAI/portia-agent-examples" target="_blank">**here (↗)**</a>. We recommend starting with the <a href="https://github.com/portiaAI/portia-agent-examples/tree/main/get_started_google_tools" target="_blank">**Google Tools example (↗)**</a> if you are brand new to Portia.
 
 ### E2E example with open source tools
 This example is meant to get you familiar with a few of our core abstractions:
