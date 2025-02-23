@@ -12,13 +12,13 @@ from portia.config import Config, LogLevel
 from portia.errors import ToolHardError, ToolSoftError
 from portia.execution_context import ExecutionContext, empty_context
 from portia.plan import Plan, PlanContext, Step, Variable
-from portia.runner import Runner
 from portia.tool import Tool, ToolRunContext
 from portia.tool_call import ToolCallRecord, ToolCallStatus
 from portia.workflow import Workflow, WorkflowUUID
 
 if TYPE_CHECKING:
     from portia.execution_context import ExecutionContext
+    from portia.runner import Runner
 
 
 def get_test_tool_context(

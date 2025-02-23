@@ -1,73 +1,23 @@
-"""Clarification Handler.
-
-This module defines the base ClarificationHandler class that determines how to handle clarifications
-that arise during the execution of a workflow. It can be extended to customize the handling of
-clarifications.
-"""
-
-from __future__ import annotations
+"""TODO"""
 
 import json
-from typing import TYPE_CHECKING, cast
 
 import click
 
 from portia.clarification import (
     ActionClarification,
-    Clarification,
-    ClarificationCategory,
     CustomClarification,
     InputClarification,
     MultipleChoiceClarification,
     ValueConfirmationClarification,
 )
 from portia.logger import logger
+from portia.runner import Runner
 from portia.workflow import Workflow, WorkflowState
 
-if TYPE_CHECKING:
-    from portia.runner import Runner
 
-
-class ClarificationHandler:
-    """Handles clarifications that arise during the execution of a workflow."""
-
-    def handle(self, runner: Runner, workflow: Workflow, clarification: Clarification) -> Workflow:
-        """Handle a clarification by routing it to the appropriate handler.
-
-        Args:
-            runner: The runner that is running the workflow
-            workflow: The workflow that the clarification was raised on
-            clarification: The clarification object to handle
-
-        """
-        match clarification.category:
-            case ClarificationCategory.ACTION:
-                return self.handle_action_clarification(
-                    runner,
-                    workflow,
-                    cast(ActionClarification, clarification),
-                )
-            case ClarificationCategory.INPUT:
-                return self.handle_input_clarification(
-                    runner,
-                    workflow,
-                    cast(InputClarification, clarification),
-                )
-            case ClarificationCategory.MULTIPLE_CHOICE:
-                return self.handle_multiple_choice_clarification(
-                    runner,
-                    workflow,
-                    cast(MultipleChoiceClarification, clarification),
-                )
-            case ClarificationCategory.VALUE_CONFIRMATION:
-                return self.handle_value_confirmation_clarification(
-                    runner,
-                    workflow,
-                    cast(ValueConfirmationClarification, clarification),
-                )
-            case _:
-                # TODO: Ask about argument clarification
-                raise ValueError(f"Unknown clarification category: {clarification.category}")
+class DefaultClarificationHandler:
+    """A default clarification handler that allows the user to handle clarifications on the CLI."""
 
     def handle_argument_clarification(
         self,
@@ -75,7 +25,7 @@ class ClarificationHandler:
         workflow: Workflow,
         clarification: ActionClarification,
     ) -> Workflow:
-        """Handle a clarification that needs the user to complete an action (e.g. click a URL)."""
+        """Present the action clarification to the user on the CLI."""
         logger().info(
             f"{clarification.user_guidance} -- Please click on the link below to proceed.",
             f"{clarification.action_url}",
@@ -127,7 +77,7 @@ class ClarificationHandler:
         workflow: Workflow,
         clarification: ValueConfirmationClarification,
     ) -> Workflow:
-        """Handle a custom clarification."""
+        """Ask the user to confirm the value on the CLI."""
         if click.confirm(text=clarification.user_guidance, default=False):
             return runner.resolve_clarification(
                 clarification,
@@ -144,7 +94,7 @@ class ClarificationHandler:
         workflow: Workflow,
         clarification: CustomClarification,
     ) -> Workflow:
-        """Handle a custom clarification."""
+        """Handle a custom clarification by presenting it to the user on the CLI."""
         click.echo(clarification.user_guidance)
         click.echo(f"Additional data: {json.dumps(clarification.data)}")
         user_input = click.prompt("\nPlease enter a value:\n")

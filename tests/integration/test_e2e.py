@@ -151,6 +151,7 @@ def test_runner_run_query_with_clarifications(
     workflow = runner.create_workflow(plan)
     runner.execute_workflow(workflow)
     assert workflow.state == WorkflowState.COMPLETE
+    assert test_clarification_handler.received_clarification is not None
     assert (
         test_clarification_handler.received_clarification.user_guidance == "Return a clarification"
     )
@@ -352,6 +353,7 @@ def test_runner_run_query_with_multiple_clarifications(
     assert workflow.outputs.final_output.value == 498
     assert workflow.outputs.final_output.summary is not None
 
+    assert test_clarification_handler.received_clarification is not None
     assert test_clarification_handler.received_clarification.user_guidance == "please try again"
 
 
