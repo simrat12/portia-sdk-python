@@ -200,7 +200,7 @@ class ErrorTool(Tool):
 
 class TestClarificationHandler(ClarificationHandler):  # noqa: D101
     received_clarification: Clarification | None = None
-    clarification_response: str = "Test"
+    clarification_response: object = "Test"
 
     def handle_input_clarification(  # noqa: D102
         self,

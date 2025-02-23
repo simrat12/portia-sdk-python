@@ -65,9 +65,14 @@ class ClarificationHandler:
                     workflow,
                     cast(ValueConfirmationClarification, clarification),
                 )
-            case _:
-                # TODO: Ask about argument clarification
-                raise ValueError(f"Unknown clarification category: {clarification.category}")
+            case ClarificationCategory.CUSTOM:
+                return self.handle_custom_clarification(
+                    runner,
+                    workflow,
+                    cast(CustomClarification, clarification),
+                )
+            case ClarificationCategory.ARGUMENT:
+                raise NotImplementedError("Argument clarification not implemented")
 
     def handle_argument_clarification(
         self,

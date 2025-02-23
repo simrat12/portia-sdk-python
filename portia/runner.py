@@ -261,8 +261,16 @@ class Runner:
         # if the workflow has execution context associated, but none is set then use it
         if not is_execution_context_set():
             with execution_context(workflow.execution_context):
-                return self._execute_workflow(plan, workflow)
+                return self.execute_workflow_and_handle_clarifications(plan, workflow)
 
+        return self.execute_workflow_and_handle_clarifications(plan, workflow)
+
+    def execute_workflow_and_handle_clarifications(
+        self,
+        plan: Plan,
+        workflow: Workflow,
+    ) -> Workflow:
+        """Execute a workflow and handle any clarifications that are raised."""
         # if there is execution context set, make sure we update the workflow before running
         workflow.execution_context = get_execution_context()
         workflow = self._execute_workflow(plan, workflow)
@@ -273,7 +281,7 @@ class Runner:
                 workflow = self.clarification_handler.handle(self, workflow, clarification)
 
             # Once clarifications are resolved, resume the workflow
-            workflow = self.execute_workflow(workflow)
+            workflow = self.execute_workflow_and_handle_clarifications(plan, workflow)
 
         return workflow
 

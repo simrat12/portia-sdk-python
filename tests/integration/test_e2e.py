@@ -293,6 +293,7 @@ def test_runner_run_query_with_multiple_clarifications(
             return a + b
 
     test_clarification_handler = TestClarificationHandler()
+    test_clarification_handler.clarification_response = 456
     tool_registry = InMemoryToolRegistry.from_local_tools([MyAdditionTool()])
     runner = Runner(
         config=config,
@@ -346,9 +347,9 @@ def test_runner_run_query_with_multiple_clarifications(
     workflow = runner.create_workflow(plan)
     workflow = runner.execute_workflow(workflow)
 
-    runner.execute_workflow(workflow)
     assert workflow.state == WorkflowState.COMPLETE
-    # 498 = 456 (clarification - value a - step 1) + 2 (value b - step 1) + 40 (value b - step 2)
+    # 498 = 456 (clarification for value a in step 1) + 2 (value b in step 1)
+    #  + 40 (value b in step 2)
     assert workflow.outputs.final_output is not None
     assert workflow.outputs.final_output.value == 498
     assert workflow.outputs.final_output.summary is not None
