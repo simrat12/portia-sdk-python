@@ -4,7 +4,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from pydantic import SecretStr, ValidationError
+from pydantic import SecretStr
 
 from portia.config import (
     AgentType,

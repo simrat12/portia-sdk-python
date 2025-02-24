@@ -272,7 +272,8 @@ class VerifierModel:
                 "\n- If an argument is marked as invalid it is likely wrong."
                 "\n- We really care if the value of an argument is not in the context, a handled "
                 "clarification or goal at all (then made_up should be TRUE), but it is ok if "
-                "it is there but in a different format (then made_up should be FALSE). "
+                "it is there but in a different format, or if it can be reasonably derived from the"
+                " information that is there (then made_up should be FALSE). "
                 "\n- Arguments where the value comes from a clarification should be marked as FALSE"
                 "\nThe output must conform to the following schema:\n\n"
                 "class VerifiedToolArgument:\n"
@@ -291,8 +292,10 @@ class VerifierModel:
                 "\n\n----------\n\n"
                 "Context for user input and past steps:"
                 "\n{context}\n"
+                "The system has a tool available named '{tool_name}'.\n"
+                "Argument schema for the tool:\n{tool_args}\n"
                 "\n\n----------\n\n"
-                "Label of the following arguments as made up or not using the goal and context provided: {arguments}\n",  # noqa: E501
+                "Label the following arguments as made up or not using the goal and context provided: {arguments}\n",  # noqa: E501
             ),
         ],
     )
@@ -332,6 +335,8 @@ class VerifierModel:
                 context=self.context,
                 task=self.agent.step.task,
                 arguments=tool_args,
+                tool_name=self.agent.tool.name,
+                tool_args=self.agent.tool.args_json_schema(),
             ),
         )
         response = VerifiedToolInputs.model_validate(response)
@@ -572,7 +577,7 @@ class VerifierAgent(BaseAgent):
         context = self.get_system_context()
         execution_context = get_execution_context()
         execution_context.workflow_run_context = context
-        llm = LLMWrapper(self.config).to_langchain()
+        llm = LLMWrapper(self.config.agent_llm_config).to_langchain()
 
         tools = [
             self.tool.to_langchain_with_artifact(

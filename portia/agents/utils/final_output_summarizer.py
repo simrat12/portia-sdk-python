@@ -71,7 +71,7 @@ class FinalOutputSummarizer:
             str | None: The generated summary or None if generation fails.
 
         """
-        llm = LLMWrapper(self.config).to_langchain()
+        llm = LLMWrapper(self.config.summariser_llm_config).to_langchain()
         context = self._build_tasks_and_outputs_context(plan, workflow)
         response = llm.invoke(
             self.SUMMARIZE_TASK + context,

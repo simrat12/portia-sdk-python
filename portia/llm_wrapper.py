@@ -33,7 +33,7 @@ from mistralai import Mistral
 from openai import OpenAI
 from pydantic import BaseModel
 
-from portia.config import Config, LLMProvider
+from portia.config import LLMConfig, LLMModel, LLMProvider
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import (
@@ -59,11 +59,11 @@ class BaseLLMWrapper(ABC):
 
     """
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: LLMConfig) -> None:
         """Initialize the base LLM wrapper.
 
         Args:
-            config (Config): The configuration object containing settings for the LLM.
+            config (LLMConfig): The configuration object containing settings for the LLM.
 
         """
         self.config = config
@@ -126,7 +126,7 @@ class LLMWrapper(BaseLLMWrapper):
 
     def __init__(
         self,
-        config: Config,
+        config: LLMConfig,
     ) -> None:
         """Initialize the wrapper.
 
@@ -157,6 +157,9 @@ class LLMWrapper(BaseLLMWrapper):
                     seed=self.model_seed,
                     api_key=self.config.openai_api_key,
                     max_retries=3,
+                    # TODO
+                    temperature=1 if self.model_name == LLMModel.O3_MINI else 0,
+                    disabled_params={"parallel_tool_calls": None},
                 )
             case LLMProvider.ANTHROPIC:
                 return ChatAnthropic(

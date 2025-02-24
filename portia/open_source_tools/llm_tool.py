@@ -56,7 +56,7 @@ class LLMTool(Tool[str]):
 
     def run(self, ctx: ToolRunContext, task: str) -> str:
         """Run the LLMTool."""
-        llm_wrapper = LLMWrapper(ctx.config)
+        llm_wrapper = LLMWrapper(ctx.config.llm_tool_config)
         llm = llm_wrapper.to_langchain()
 
         # Define system and user messages

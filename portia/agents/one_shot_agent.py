@@ -177,7 +177,7 @@ class OneShotAgent(BaseAgent):
 
         context = self.get_system_context()
 
-        llm = LLMWrapper(self.config).to_langchain()
+        llm = LLMWrapper(self.config.agent_llm_config).to_langchain()
         tools = [
             self.tool.to_langchain_with_artifact(
                 ctx=ToolRunContext(

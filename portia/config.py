@@ -252,6 +252,44 @@ def parse_str_to_enum(value: str | E, enum_type: type[E]) -> E:
     )
 
 
+class LLMConfig(BaseModel):
+    """Configuration for LLM providers.
+
+    Attributes:
+        llm_provider: The LLM provider.
+        llm_model_name: The LLM model name.
+        llm_model_seed: The seed for LLM generation.
+
+    """
+
+    llm_provider: LLMProvider = Field(
+        default=LLMProvider.OPENAI,
+        description="Which LLM Provider to use.",
+    )
+
+    @field_validator("llm_provider", mode="before")
+    @classmethod
+    def parse_llm_provider(cls, value: str | LLMProvider) -> LLMProvider:
+        """Parse llm_provider to enum if string provided."""
+        return parse_str_to_enum(value, LLMProvider)
+
+    llm_model_name: LLMModel = Field(
+        default=LLMModel.O3_MINI,
+        description="Which LLM Model to use.",
+    )
+
+    @field_validator("llm_model_name", mode="before")
+    @classmethod
+    def parse_llm_model_name(cls, value: str | LLMModel) -> LLMModel:
+        """Parse llm_model_name to enum if string provided."""
+        return parse_str_to_enum(value, LLMModel)
+
+    llm_model_seed: PositiveNumber = Field(
+        default=443,
+        description="The model seed to use.",
+    )
+
+
 class Config(BaseModel):
     """General configuration for the SDK.
 
@@ -352,32 +390,10 @@ class Config(BaseModel):
     )
 
     # LLM Options
-    llm_provider: LLMProvider = Field(
-        default=LLMProvider.OPENAI,
-        description="Which LLM Provider to use.",
-    )
-
-    @field_validator("llm_provider", mode="before")
-    @classmethod
-    def parse_llm_provider(cls, value: str | LLMProvider) -> LLMProvider:
-        """Parse llm_provider to enum if string provided."""
-        return parse_str_to_enum(value, LLMProvider)
-
-    llm_model_name: LLMModel = Field(
-        default=LLMModel.GPT_4_O_MINI,
-        description="Which LLM Model to use.",
-    )
-
-    @field_validator("llm_model_name", mode="before")
-    @classmethod
-    def parse_llm_model_name(cls, value: str | LLMModel) -> LLMModel:
-        """Parse llm_model_name to enum if string provided."""
-        return parse_str_to_enum(value, LLMModel)
-
-    llm_model_seed: PositiveNumber = Field(
-        default=443,
-        description="The model seed to use.",
-    )
+    planner_llm_config: LLMConfig
+    agent_llm_config: LLMConfig
+    llm_tool_config: LLMConfig
+    summariser_llm_config: LLMConfig
 
     # Agent Options
     default_agent_type: AgentType = Field(
@@ -524,12 +540,62 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
         Config: The default config
 
     """
+    if {"llm_provider", "llm_model_name", "llm_model_seed"} & kwargs:
+        planner_llm_provider = kwargs.pop("llm_provider", LLMProvider.OPENAI)
+        planner_llm_model_name = kwargs.pop("llm_model_name", LLMModel.GPT_4_O_MINI)
+        planner_llm_model_seed = kwargs.pop("llm_model_seed", 443)
+
+        agent_llm_provider = planner_llm_provider
+        agent_llm_model_name = planner_llm_model_name
+        agent_llm_model_seed = planner_llm_model_seed
+
+        llm_tool_provider = planner_llm_provider
+        llm_tool_model_name = planner_llm_model_name
+        llm_tool_model_seed = planner_llm_model_seed
+
+        summariser_llm_provider = planner_llm_provider
+        summariser_llm_model_name = planner_llm_model_name
+        summariser_llm_model_seed = planner_llm_model_seed
+    else:
+        planner_llm_provider = kwargs.pop("planner_llm_provider", LLMProvider.OPENAI)
+        planner_llm_model_name = kwargs.pop("planner_llm_model_name", LLMModel.O3_MINI)
+        planner_llm_model_seed = kwargs.pop("planner_llm_model_seed", 443)
+
+        agent_llm_provider = kwargs.pop("agent_llm_provider", LLMProvider.OPENAI)
+        agent_llm_model_name = kwargs.pop("agent_llm_model_name", LLMModel.GPT_4_O_MINI)
+        agent_llm_model_seed = kwargs.pop("agent_llm_model_seed", 443)
+
+        summariser_llm_provider = kwargs.pop("agent_llm_provider", LLMProvider.OPENAI)
+        summariser_llm_model_name = kwargs.pop("agent_llm_model_name", LLMModel.GPT_4_O_MINI)
+        summariser_llm_model_seed = kwargs.pop("agent_llm_model_seed", 443)
+
+        llm_tool_provider = kwargs.pop("llm_tool_provider", LLMProvider.OPENAI)
+        llm_tool_model_name = kwargs.pop("llm_tool_model_name", LLMModel.GPT_4_O_MINI)
+        llm_tool_model_seed = kwargs.pop("llm_tool_model_seed", 443)
+
     return Config(
         storage_class=kwargs.pop("storage_class", StorageClass.MEMORY),
-        llm_provider=kwargs.pop("llm_provider", LLMProvider.OPENAI),
-        llm_model_name=kwargs.pop("llm_model_name", LLMModel.O3_MINI),
+        planner_llm_config=LLMConfig(
+            llm_provider=planner_llm_provider,
+            llm_model_name=planner_llm_model_name,
+            llm_model_seed=planner_llm_model_seed,
+        ),
+        agent_llm_config=LLMConfig(
+            llm_provider=agent_llm_provider,
+            llm_model_name=agent_llm_model_name,
+            llm_model_seed=agent_llm_model_seed,
+        ),
+        llm_tool_config=LLMConfig(
+            llm_provider=llm_tool_provider,
+            llm_model_name=llm_tool_model_name,
+            llm_model_seed=llm_tool_model_seed,
+        ),
+        summariser_llm_config=LLMConfig(
+            llm_provider=summariser_llm_provider,
+            llm_model_name=summariser_llm_model_name,
+            llm_model_seed=summariser_llm_model_seed,
+        ),
         default_planner=kwargs.pop("default_planner", PlannerType.ONE_SHOT),
-        llm_model_seed=kwargs.pop("llm_model_seed", 443),
         default_agent_type=kwargs.pop("default_agent_type", AgentType.VERIFIER),
         **kwargs,
     )
