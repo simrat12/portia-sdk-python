@@ -74,26 +74,17 @@ class ClarificationHandler:
             case ClarificationCategory.ARGUMENT:
                 raise NotImplementedError("Argument clarification not implemented")
 
-    def handle_argument_clarification(
-        self,
-        runner: Runner,
-        workflow: Workflow,
-        clarification: ActionClarification,
-    ) -> Workflow:
-        """Handle a clarification that needs the user to complete an action (e.g. click a URL)."""
-        logger().info(
-            f"{clarification.user_guidance} -- Please click on the link below to proceed.",
-            f"{clarification.action_url}",
-        )
-        return runner.wait_for_ready(workflow)
-
     def handle_action_clarification(
         self,
         runner: Runner,
         workflow: Workflow,
         clarification: ActionClarification,
     ) -> Workflow:
-        """Handle a clarification that needs the user to complete an action (e.g. click a URL)."""
+        """Handle a clarification that needs the user to complete an action (e.g. click a URL).
+
+        Handles the action by showing the user the URL on the CLI and instructing them to click on
+        it to proceed.
+        """
         logger().info(
             f"{clarification.user_guidance} -- Please click on the link below to proceed.",
             f"{clarification.action_url}",
@@ -132,7 +123,7 @@ class ClarificationHandler:
         workflow: Workflow,
         clarification: ValueConfirmationClarification,
     ) -> Workflow:
-        """Handle a custom clarification."""
+        """Handle a value confirmation clarification by asking the user to confirm from the CLI."""
         if click.confirm(text=clarification.user_guidance, default=False):
             return runner.resolve_clarification(
                 clarification,
