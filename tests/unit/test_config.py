@@ -9,6 +9,7 @@ from pydantic import SecretStr
 from portia.config import (
     AgentType,
     Config,
+    LLMConfig,
     LLMModel,
     LLMProvider,
     LogLevel,
@@ -16,6 +17,7 @@ from portia.config import (
     StorageClass,
 )
 from portia.errors import ConfigNotFoundError, InvalidConfigError
+from tests.utils import get_test_config, get_test_llm_config
 
 
 def test_runner_config_from_file() -> None:
@@ -56,22 +58,41 @@ def test_from_default() -> None:
 def test_set_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test setting keys."""
     monkeypatch.setenv("PORTIA_API_KEY", "test-key")
+    c = get_test_config()
+    assert c.portia_api_key == SecretStr("test-key")
+
+
+def test_set_llm_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test setting LLM keys."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
     monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
-    c = Config.from_default(default_log_level=LogLevel.CRITICAL)
-    assert c.portia_api_key == SecretStr("test-key")
+    c = get_test_llm_config()
     assert c.openai_api_key == SecretStr("test-openai-key")
     assert c.anthropic_api_key == SecretStr("test-anthropic-key")
     assert c.mistralai_api_key == SecretStr("test-mistral-key")
 
 
-def test_set_with_strings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Test setting keys as string."""
-    monkeypatch.setenv("PORTIA_API_KEY", "test-key")
+def test_set_llm_config_with_strings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test setting LLM config with strings."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
     monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
+    c = LLMConfig(
+        llm_provider=LLMProvider.MISTRALAI,
+        llm_model_name=LLMModel.MISTRAL_LARGE_LATEST,
+        llm_model_seed=101,
+    )
+    assert c.llm_provider == LLMProvider.MISTRALAI
+    assert c.llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.llm_model_seed == 101
+    with pytest.raises(InvalidConfigError):
+        c = LLMConfig(llm_provider="personal", llm_model_name="other-model")
+
+
+def test_set_with_strings(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test setting keys as string."""
+    monkeypatch.setenv("PORTIA_API_KEY", "test-key")
     # storage
     c = Config.from_default(storage_class="DISK")
     assert c.storage_class == StorageClass.DISK
@@ -87,19 +108,60 @@ def test_set_with_strings(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(InvalidConfigError):
         c = Config.from_default(default_log_level="some level")
 
-    # LLM provider + model
-    c = Config.from_default(llm_provider="MISTRALAI", llm_model_name="mistral_large_latest")
-    assert c.llm_provider == LLMProvider.MISTRALAI
-    assert c.llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    with pytest.raises(InvalidConfigError):
-        c = Config.from_default(llm_provider="personal", llm_model_name="other-model")
-
     # default_agent_type
     c = Config.from_default(default_agent_type="verifier")
     assert c.default_agent_type == AgentType.VERIFIER
     with pytest.raises(InvalidConfigError):
         c = Config.from_default(default_agent_type="my agent")
 
+    # planner agent llm
+    c = Config.from_default(
+        planner_agent_llm=LLMConfig(
+            llm_provider=LLMProvider.MISTRALAI,
+            llm_model_name=LLMModel.MISTRAL_LARGE_LATEST,
+            llm_model_seed=101,
+        ),
+    )
+    assert c.planner_agent_llm.llm_provider == LLMProvider.MISTRALAI
+    assert c.planner_agent_llm.llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.planner_agent_llm.llm_model_seed == 101
+    with pytest.raises(InvalidConfigError):
+        c = Config.from_default(
+            planner_agent_llm=LLMConfig(
+                llm_provider="my provider",
+                llm_model_name="my model",
+            ),
+        )
+
+    # evaluation agent llm
+    c = Config.from_default(
+        execution_agent_llm=LLMConfig(
+            llm_provider=LLMProvider.MISTRALAI,
+            llm_model_name=LLMModel.MISTRAL_LARGE_LATEST,
+            llm_model_seed=101,
+        ),
+    )
+    assert c.execution_agent_llm.llm_provider == LLMProvider.MISTRALAI
+    assert c.execution_agent_llm.llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.execution_agent_llm.llm_model_seed == 101
+    with pytest.raises(InvalidConfigError):
+        c = Config.from_default(
+            planner_agent_llm=LLMConfig(
+                llm_provider="my provider",
+                llm_model_name="my model",
+            ),
+        )
+
+def test_llm_config_getters() -> None:
+    """Test getters of LLMConfig work."""
+    # no api key for provider model
+    for provider in [LLMProvider.OPENAI, LLMProvider.ANTHROPIC, LLMProvider.MISTRALAI]:
+        with pytest.raises(InvalidConfigError):
+            LLMConfig(
+                llm_provider=provider,
+                llm_model_name=LLMModel.GPT_4_O_MINI,
+                llm_model_seed=443,
+            )
 
 def test_getters() -> None:
     """Test getters work."""
@@ -128,35 +190,16 @@ def test_getters() -> None:
 
     # mismatch between provider and model
     with pytest.raises(InvalidConfigError):
-        Config(
-            storage_class=StorageClass.MEMORY,
+        LLMConfig(
             llm_provider=LLMProvider.OPENAI,
             llm_model_name=LLMModel.CLAUDE_3_OPUS_LATEST,
             llm_model_seed=443,
-            default_agent_type=AgentType.VERIFIER,
-            default_planner=PlannerType.ONE_SHOT,
         )
-
-    # no api key for provider model
-    for provider in [LLMProvider.OPENAI, LLMProvider.ANTHROPIC, LLMProvider.MISTRALAI]:
-        with pytest.raises(InvalidConfigError):
-            Config(
-                storage_class=StorageClass.MEMORY,
-                llm_provider=provider,
-                openai_api_key=SecretStr(""),
-                llm_model_name=LLMModel.GPT_4_O_MINI,
-                llm_model_seed=443,
-                default_agent_type=AgentType.VERIFIER,
-                default_planner=PlannerType.ONE_SHOT,
-            )
     # no Portia API KEy
     with pytest.raises(InvalidConfigError):
-        Config(
+        Config.from_default(
             storage_class=StorageClass.CLOUD,
             portia_api_key=SecretStr(""),
-            llm_provider=LLMProvider.OPENAI,
-            llm_model_name=LLMModel.GPT_4_O_MINI,
-            llm_model_seed=443,
             default_agent_type=AgentType.VERIFIER,
             default_planner=PlannerType.ONE_SHOT,
         )

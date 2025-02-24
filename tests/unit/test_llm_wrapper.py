@@ -8,7 +8,7 @@ import pytest
 
 from portia.llm_wrapper import BaseLLMWrapper, T
 from portia.planners.planner import StepsOrError
-from tests.utils import get_test_config
+from tests.utils import get_test_llm_config
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
@@ -31,7 +31,7 @@ def test_base_classes() -> None:
         def to_langchain(self) -> BaseChatModel:
             return super().to_langchain()  # type: ignore  # noqa: PGH003
 
-    wrapper = MyWrapper(get_test_config())
+    wrapper = MyWrapper(get_test_llm_config())
 
     with pytest.raises(NotImplementedError):
         wrapper.to_instructor(

@@ -335,8 +335,8 @@ class VerifierModel:
                 context=self.context,
                 task=self.agent.step.task,
                 arguments=tool_args,
-                tool_name=self.agent.tool.name,
-                tool_args=self.agent.tool.args_json_schema(),
+                tool_name=self.agent.tool.name if self.agent.tool else "",
+                tool_args=self.agent.tool.args_json_schema() if self.agent.tool else "",
             ),
         )
         response = VerifiedToolInputs.model_validate(response)

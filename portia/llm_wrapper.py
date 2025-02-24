@@ -157,7 +157,8 @@ class LLMWrapper(BaseLLMWrapper):
                     seed=self.model_seed,
                     api_key=self.config.openai_api_key,
                     max_retries=3,
-                    # TODO
+                    # Unfortunately you get errors from o3 mini with Langchain unless you set
+                    # temperature to 1. See https://github.com/ai-christianson/RA.Aid/issues/70
                     temperature=1 if self.model_name == LLMModel.O3_MINI else 0,
                     disabled_params={"parallel_tool_calls": None},
                 )

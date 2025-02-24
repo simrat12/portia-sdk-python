@@ -4,7 +4,7 @@ import pytest
 from langchain_anthropic import ChatAnthropic
 from langchain_mistralai import ChatMistralAI
 
-from portia.config import Config, LLMModel, LLMProvider
+from portia.config import LLMConfig, LLMModel, LLMProvider
 from portia.llm_wrapper import LLMWrapper
 from portia.plan import Plan
 
@@ -28,12 +28,7 @@ PROVIDER_MODELS = [
 @pytest.mark.flaky(reruns=3)  # MistralAI is a little flaky on the to_instructor call
 def test_wrapper_methods(llm_provider: LLMProvider, llm_model_name: LLMModel) -> None:
     """Test we can generate wrappers for important providers."""
-    c = Config.from_default(
-        llm_provider=llm_provider,
-        llm_model_name=llm_model_name,
-    )
-
-    wrapper = LLMWrapper(c)
+    wrapper = LLMWrapper(LLMConfig(llm_provider=llm_provider, llm_model_name=llm_model_name))
     # check we don't get errors
     wrapper.to_instructor(
         Plan,

@@ -252,7 +252,73 @@ def parse_str_to_enum(value: str | E, enum_type: type[E]) -> E:
     )
 
 
-class LLMConfig(BaseModel):
+class BaseConfig(BaseModel):
+    """Base class for all configuration classes."""
+
+    def has_api_key(self, name: str) -> bool:
+        """Check if the given API Key is available."""
+        try:
+            self.must_get_api_key(name)
+        except InvalidConfigError:
+            return False
+        else:
+            return True
+
+    def must_get_api_key(self, name: str) -> SecretStr:
+        """Retrieve the required API key for the configured provider.
+
+        Raises:
+            ConfigNotFoundError: If no API key is found for the provider.
+
+        Returns:
+            SecretStr: The required API key.
+
+        """
+        return self.must_get(name, SecretStr)
+
+    def must_get_raw_api_key(self, name: str) -> str:
+        """Retrieve the raw API key for the configured provider.
+
+        Raises:
+            ConfigNotFoundError: If no API key is found for the provider.
+
+        Returns:
+            str: The raw API key.
+
+        """
+        key = self.must_get_api_key(name)
+        return key.get_secret_value()
+
+    def must_get(self, name: str, expected_type: type[T]) -> T:
+        """Retrieve any value from the config, ensuring its of the correct type.
+
+        Args:
+            name (str): The name of the config record.
+            expected_type (type[T]): The expected type of the value.
+
+        Raises:
+            ConfigNotFoundError: If no API key is found for the provider.
+            InvalidConfigError: If the config isn't valid
+
+        Returns:
+            T: The config value
+
+        """
+        if not hasattr(self, name):
+            raise ConfigNotFoundError(name)
+        value = getattr(self, name)
+        if not isinstance(value, expected_type):
+            raise InvalidConfigError(name, f"Not of expected type: {expected_type}")
+        # ensure non-empty values
+        match value:
+            case str() if value == "":
+                raise InvalidConfigError(name, "Empty value not allowed")
+            case SecretStr() if value.get_secret_value() == "":
+                raise InvalidConfigError(name, "Empty SecretStr value not allowed")
+        return value
+
+
+class LLMConfig(BaseConfig):
     """Configuration for LLM providers.
 
     Attributes:
@@ -289,8 +355,48 @@ class LLMConfig(BaseModel):
         description="The model seed to use.",
     )
 
+    openai_api_key: SecretStr | None = Field(
+        default_factory=lambda: SecretStr(os.getenv("OPENAI_API_KEY") or ""),
+        description="The API Key for OpenAI. Must be set if llm-provider is OPENAI",
+    )
+    anthropic_api_key: SecretStr | None = Field(
+        default_factory=lambda: SecretStr(os.getenv("ANTHROPIC_API_KEY") or ""),
+        description="The API Key for Anthropic. Must be set if llm-provider is ANTHROPIC",
+    )
+    mistralai_api_key: SecretStr | None = Field(
+        default_factory=lambda: SecretStr(os.getenv("MISTRAL_API_KEY") or ""),
+        description="The API Key for Mistral AI. Must be set if llm-provider is MISTRALAI",
+    )
 
-class Config(BaseModel):
+    @model_validator(mode="after")
+    def check_config(self) -> Self:
+        """Validate Config is consistent."""
+
+        def validate_llm_config(expected_key: str, supported_models: list[LLMModel]) -> None:
+            """Validate LLM Config."""
+            if not self.has_api_key(expected_key):
+                raise InvalidConfigError(
+                    f"{expected_key}",
+                    f"Must be provided if using {self.llm_provider}",
+                )
+            if self.llm_model_name not in supported_models:
+                raise InvalidConfigError(
+                    "llm_model_name",
+                    "Unsupported model please use one of: "
+                    + ", ".join(model.value for model in supported_models),
+                )
+
+        match self.llm_provider:
+            case LLMProvider.OPENAI:
+                validate_llm_config("openai_api_key", SUPPORTED_OPENAI_MODELS)
+            case LLMProvider.ANTHROPIC:
+                validate_llm_config("anthropic_api_key", SUPPORTED_ANTHROPIC_MODELS)
+            case LLMProvider.MISTRALAI:
+                validate_llm_config("mistralai_api_key", SUPPORTED_MISTRALAI_MODELS)
+        return self
+
+
+class Config(BaseConfig):
     """General configuration for the SDK.
 
     This class holds the configuration for the SDK, including API keys, LLM
@@ -309,9 +415,18 @@ class Config(BaseModel):
         default_log_level: The default log level (e.g., DEBUG, INFO).
         default_log_sink: The default destination for logs (e.g., sys.stdout).
         json_log_serialize: Whether to serialize logs in JSON format.
-        llm_provider: The LLM provider (e.g., OpenAI, Anthropic).
-        llm_model_name: The model to use for LLM tasks.
-        llm_model_seed: The seed for LLM generation.
+        planner_llm_provider: The LLM provider used for the planner agent.
+        planner_llm_model_name: The specific LLM model used for the planner agent.
+        planner_llm_model_seed: The seed value used for the planner agent.
+        execution_lm_provider: The LLM provider used for the execution agent.
+        execution_llm_model_name: The specific LLM model used for the execution agent.
+        execution_llm_model_seed: The seed value used for the execution agent.
+        llm_tool_provider: The LLM provider used for the LLM tool
+        llm_tool_model_name: The specific LLM model used for the LLM tool.
+        llm_tool_model_seed: The seed value used for the LLM tool.
+        summariser_llm_provider: The LLM provider used for summarization tasks.
+        summariser_llm_model_name: The specific LLM model used for summarization tasks.
+        summariser_llm_model_seed: The seed value used for summarizer LLM model reproducibility.
         default_agent_type: The default agent type.
         default_planner: The default planner type.
 
@@ -327,20 +442,6 @@ class Config(BaseModel):
     portia_api_key: SecretStr | None = Field(
         default_factory=lambda: SecretStr(os.getenv("PORTIA_API_KEY") or ""),
         description="The API Key for the Portia Cloud API available from the dashboard at https://app.portialabs.ai",
-    )
-
-    # LLM API Keys
-    openai_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("OPENAI_API_KEY") or ""),
-        description="The API Key for OpenAI. Must be set if llm-provider is OPENAI",
-    )
-    anthropic_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("ANTHROPIC_API_KEY") or ""),
-        description="The API Key for Anthropic. Must be set if llm-provider is ANTHROPIC",
-    )
-    mistralai_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("MISTRAL_API_KEY") or ""),
-        description="The API Key for Mistral AI. Must be set if llm-provider is MISTRALAI",
     )
 
     # Storage Options
@@ -425,28 +526,6 @@ class Config(BaseModel):
         # Portia API Key must be provided if using cloud storage
         if self.storage_class == StorageClass.CLOUD and not self.has_api_key("portia_api_key"):
             raise InvalidConfigError("portia_api_key", "Must be provided if using cloud storage")
-
-        def validate_llm_config(expected_key: str, supported_models: list[LLMModel]) -> None:
-            """Validate LLM Config."""
-            if not self.has_api_key(expected_key):
-                raise InvalidConfigError(
-                    f"{expected_key}",
-                    f"Must be provided if using {self.llm_provider}",
-                )
-            if self.llm_model_name not in supported_models:
-                raise InvalidConfigError(
-                    "llm_model_name",
-                    "Unsupported model please use one of: "
-                    + ", ".join(model.value for model in supported_models),
-                )
-
-        match self.llm_provider:
-            case LLMProvider.OPENAI:
-                validate_llm_config("openai_api_key", SUPPORTED_OPENAI_MODELS)
-            case LLMProvider.ANTHROPIC:
-                validate_llm_config("anthropic_api_key", SUPPORTED_ANTHROPIC_MODELS)
-            case LLMProvider.MISTRALAI:
-                validate_llm_config("mistralai_api_key", SUPPORTED_MISTRALAI_MODELS)
         return self
 
     @classmethod
@@ -470,68 +549,6 @@ class Config(BaseModel):
         """
         return default_config(**kwargs)
 
-    def has_api_key(self, name: str) -> bool:
-        """Check if the given API Key is available."""
-        try:
-            self.must_get_api_key(name)
-        except InvalidConfigError:
-            return False
-        else:
-            return True
-
-    def must_get_api_key(self, name: str) -> SecretStr:
-        """Retrieve the required API key for the configured provider.
-
-        Raises:
-            ConfigNotFoundError: If no API key is found for the provider.
-
-        Returns:
-            SecretStr: The required API key.
-
-        """
-        return self.must_get(name, SecretStr)
-
-    def must_get_raw_api_key(self, name: str) -> str:
-        """Retrieve the raw API key for the configured provider.
-
-        Raises:
-            ConfigNotFoundError: If no API key is found for the provider.
-
-        Returns:
-            str: The raw API key.
-
-        """
-        key = self.must_get_api_key(name)
-        return key.get_secret_value()
-
-    def must_get(self, name: str, expected_type: type[T]) -> T:
-        """Retrieve any value from the config, ensuring its of the correct type.
-
-        Args:
-            name (str): The name of the config record.
-            expected_type (type[T]): The expected type of the value.
-
-        Raises:
-            ConfigNotFoundError: If no API key is found for the provider.
-            InvalidConfigError: If the config isn't valid
-
-        Returns:
-            T: The config value
-
-        """
-        if not hasattr(self, name):
-            raise ConfigNotFoundError(name)
-        value = getattr(self, name)
-        if not isinstance(value, expected_type):
-            raise InvalidConfigError(name, f"Not of expected type: {expected_type}")
-        # ensure non-empty values
-        match value:
-            case str() if value == "":
-                raise InvalidConfigError(name, "Empty value not allowed")
-            case SecretStr() if value.get_secret_value() == "":
-                raise InvalidConfigError(name, "Empty SecretStr value not allowed")
-        return value
-
 
 def default_config(**kwargs) -> Config:  # noqa: ANN003
     """Return default config with values that can be overridden.
@@ -540,61 +557,59 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
         Config: The default config
 
     """
-    if {"llm_provider", "llm_model_name", "llm_model_seed"} & kwargs:
-        planner_llm_provider = kwargs.pop("llm_provider", LLMProvider.OPENAI)
-        planner_llm_model_name = kwargs.pop("llm_model_name", LLMModel.GPT_4_O_MINI)
-        planner_llm_model_seed = kwargs.pop("llm_model_seed", 443)
+    # TODO: THINK ABOUT SETTING THIS BASED ON API KEYS
+    if {"llm_provider", "llm_model_name", "llm_model_seed"} & kwargs.keys():
+        llm_provider = kwargs.pop("llm_provider", LLMProvider.OPENAI)
+        llm_model_name = kwargs.pop("llm_model_name", LLMModel.GPT_4_O_MINI)
+        llm_model_seed = kwargs.pop("llm_model_seed", 443)
 
-        agent_llm_provider = planner_llm_provider
-        agent_llm_model_name = planner_llm_model_name
-        agent_llm_model_seed = planner_llm_model_seed
-
-        llm_tool_provider = planner_llm_provider
-        llm_tool_model_name = planner_llm_model_name
-        llm_tool_model_seed = planner_llm_model_seed
-
-        summariser_llm_provider = planner_llm_provider
-        summariser_llm_model_name = planner_llm_model_name
-        summariser_llm_model_seed = planner_llm_model_seed
+        planner_llm_config = LLMConfig(
+            llm_provider=llm_provider,
+            llm_model_name=llm_model_name,
+            llm_model_seed=llm_model_seed,
+        )
+        agent_llm_config = LLMConfig(
+            llm_provider=llm_provider,
+            llm_model_name=llm_model_name,
+            llm_model_seed=llm_model_seed,
+        )
+        llm_tool_config = LLMConfig(
+            llm_provider=llm_provider,
+            llm_model_name=llm_model_name,
+            llm_model_seed=llm_model_seed,
+        )
+        summariser_llm_config = LLMConfig(
+            llm_provider=llm_provider,
+            llm_model_name=llm_model_name,
+            llm_model_seed=llm_model_seed,
+        )
     else:
-        planner_llm_provider = kwargs.pop("planner_llm_provider", LLMProvider.OPENAI)
-        planner_llm_model_name = kwargs.pop("planner_llm_model_name", LLMModel.O3_MINI)
-        planner_llm_model_seed = kwargs.pop("planner_llm_model_seed", 443)
-
-        agent_llm_provider = kwargs.pop("agent_llm_provider", LLMProvider.OPENAI)
-        agent_llm_model_name = kwargs.pop("agent_llm_model_name", LLMModel.GPT_4_O_MINI)
-        agent_llm_model_seed = kwargs.pop("agent_llm_model_seed", 443)
-
-        summariser_llm_provider = kwargs.pop("agent_llm_provider", LLMProvider.OPENAI)
-        summariser_llm_model_name = kwargs.pop("agent_llm_model_name", LLMModel.GPT_4_O_MINI)
-        summariser_llm_model_seed = kwargs.pop("agent_llm_model_seed", 443)
-
-        llm_tool_provider = kwargs.pop("llm_tool_provider", LLMProvider.OPENAI)
-        llm_tool_model_name = kwargs.pop("llm_tool_model_name", LLMModel.GPT_4_O_MINI)
-        llm_tool_model_seed = kwargs.pop("llm_tool_model_seed", 443)
-
+        planner_llm_config = LLMConfig(
+            llm_provider=kwargs.pop("planner_llm_provider", LLMProvider.OPENAI),
+            llm_model_name=kwargs.pop("planner_llm_model_name", LLMModel.O3_MINI),
+            llm_model_seed=kwargs.pop("planner_llm_model_seed", 443),
+        )
+        agent_llm_config = LLMConfig(
+            llm_provider=kwargs.pop("execution_llm_provider", LLMProvider.OPENAI),
+            llm_model_name=kwargs.pop("execution_llm_model_name", LLMModel.GPT_4_O_MINI),
+            llm_model_seed=kwargs.pop("execution_llm_model_seed", 443),
+        )
+        llm_tool_config = LLMConfig(
+            llm_provider=kwargs.pop("summariser_llm_provider", LLMProvider.OPENAI),
+            llm_model_name=kwargs.pop("summariser_llm_model_name", LLMModel.GPT_4_O_MINI),
+            llm_model_seed=kwargs.pop("summariser_llm_model_seed", 443),
+        )
+        summariser_llm_config = LLMConfig(
+            llm_provider=kwargs.pop("llm_tool_provider", LLMProvider.OPENAI),
+            llm_model_name=kwargs.pop("llm_tool_model_name", LLMModel.GPT_4_O_MINI),
+            llm_model_seed=kwargs.pop("llm_tool_model_seed", 443),
+        )
     return Config(
         storage_class=kwargs.pop("storage_class", StorageClass.MEMORY),
-        planner_llm_config=LLMConfig(
-            llm_provider=planner_llm_provider,
-            llm_model_name=planner_llm_model_name,
-            llm_model_seed=planner_llm_model_seed,
-        ),
-        agent_llm_config=LLMConfig(
-            llm_provider=agent_llm_provider,
-            llm_model_name=agent_llm_model_name,
-            llm_model_seed=agent_llm_model_seed,
-        ),
-        llm_tool_config=LLMConfig(
-            llm_provider=llm_tool_provider,
-            llm_model_name=llm_tool_model_name,
-            llm_model_seed=llm_tool_model_seed,
-        ),
-        summariser_llm_config=LLMConfig(
-            llm_provider=summariser_llm_provider,
-            llm_model_name=summariser_llm_model_name,
-            llm_model_seed=summariser_llm_model_seed,
-        ),
+        planner_llm_config=planner_llm_config,
+        agent_llm_config=agent_llm_config,
+        llm_tool_config=llm_tool_config,
+        summariser_llm_config=summariser_llm_config,
         default_planner=kwargs.pop("default_planner", PlannerType.ONE_SHOT),
         default_agent_type=kwargs.pop("default_agent_type", AgentType.VERIFIER),
         **kwargs,
