@@ -113,7 +113,7 @@ def test_runner_with_microsoft_tools() -> None:
 
     # Choose to exclude gmail rather than microsoft outlook
     def exclude_gmail_filter(tool: Tool) -> bool:
-        return not tool.id.startswith("portia::google_gmail::")
+        return not tool.id.startswith("portia:google:gmail:")
 
     registry = PortiaToolRegistry(config=Config.from_default()).filter_tools(exclude_gmail_filter)
     runner = Runner(tools=registry)
