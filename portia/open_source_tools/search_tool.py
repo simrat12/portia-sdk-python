@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 
 import httpx
@@ -11,6 +10,7 @@ from pydantic import BaseModel, Field
 from portia.errors import ToolHardError, ToolSoftError
 from portia.tool import Tool, ToolRunContext
 
+MAX_RESULTS = 3
 
 class SearchToolSchema(BaseModel):
     """Input for SearchTool."""
@@ -57,5 +57,8 @@ class SearchTool(Tool[str]):
         response.raise_for_status()
         json_response = response.json()
         if "answer" in json_response:
-            return json.dumps(json_response, indent=2)
+            results = json_response["results"]
+            if len(results) > MAX_RESULTS:
+                return results[:MAX_RESULTS]
+            return results
         raise ToolSoftError(f"Failed to get answer to search: {json_response}")
