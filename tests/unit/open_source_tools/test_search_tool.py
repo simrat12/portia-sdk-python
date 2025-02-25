@@ -1,6 +1,5 @@
 """Search tool tests."""
 
-import json
 from unittest.mock import Mock, patch
 
 import pytest
