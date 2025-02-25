@@ -577,7 +577,10 @@ class VerifierAgent(BaseAgent):
         context = self.get_system_context()
         execution_context = get_execution_context()
         execution_context.workflow_run_context = context
-        llm = LLMWrapper(self.config.agent_llm_config).to_langchain()
+        llm = LLMWrapper(
+            self.config.execution_llm_model_name,
+            self.config.get_llm_api_key(self.config.execution_llm_model_name),
+        ).to_langchain()
 
         tools = [
             self.tool.to_langchain_with_artifact(

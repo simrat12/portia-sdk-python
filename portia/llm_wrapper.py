@@ -31,7 +31,7 @@ from langchain_openai import ChatOpenAI
 from langsmith import wrappers
 from mistralai import Mistral
 from openai import OpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 from portia.config import LLMModel, LLMProvider
 
@@ -59,7 +59,7 @@ class BaseLLMWrapper(ABC):
 
     """
 
-    def __init__(self, api_key: str) -> None:
+    def __init__(self, api_key: SecretStr) -> None:
         """Initialize the base LLM wrapper.
 
         Args:
@@ -114,8 +114,8 @@ class LLMWrapper(BaseLLMWrapper):
     LangChain-compatible model and to generate responses using the instructor tool.
 
     Attributes:
-        model_name (str): The name of the model to use.
-        api_key (str): The API key for the LLM provider.
+        model_name (LLMModel): The name of the model to use.
+        api_key (SecretStr): The API key for the LLM provider.
         model_seed (int): The seed for the model's random generation.
 
     Methods:
@@ -126,8 +126,8 @@ class LLMWrapper(BaseLLMWrapper):
 
     def __init__(
         self,
-        model_name: str,
-        api_key: str,
+        model_name: LLMModel,
+        api_key: SecretStr,
         # A randomly chosen seed for the model's random generation.
         model_seed: int = 343,
     ) -> None:
@@ -153,11 +153,11 @@ class LLMWrapper(BaseLLMWrapper):
             BaseChatModel: A LangChain-compatible model.
 
         """
-        match self.llm_provider:
+        match self.model_name.provider():
             case LLMProvider.OPENAI:
                 return ChatOpenAI(
-                    name=self.model_name,
-                    model=self.model_name,
+                    name=self.model_name.value,
+                    model=self.model_name.value,
                     seed=self.model_seed,
                     api_key=self.api_key,
                     max_retries=3,
@@ -168,7 +168,7 @@ class LLMWrapper(BaseLLMWrapper):
                 )
             case LLMProvider.ANTHROPIC:
                 return ChatAnthropic(
-                    model_name=self.model_name,
+                    model_name=self.model_name.value,
                     timeout=120,
                     stop=None,
                     max_retries=3,
@@ -176,7 +176,7 @@ class LLMWrapper(BaseLLMWrapper):
                 )
             case LLMProvider.MISTRALAI:
                 return ChatMistralAI(
-                    model_name=self.model_name,
+                    model_name=self.model_name.value,
                     api_key=self.api_key,
                     max_retries=3,
                 )
@@ -196,12 +196,12 @@ class LLMWrapper(BaseLLMWrapper):
             T: The deserialized response from the LLM provider.
 
         """
-        match self.llm_provider:
+        match self.model_name.provider():
             case LLMProvider.OPENAI:
                 client = instructor.from_openai(
                     client=wrappers.wrap_openai(
                         OpenAI(
-                            api_key=self.config.must_get_raw_api_key("openai_api_key"),
+                            api_key=self.api_key.get_secret_value(),
                         ),
                     ),
                     mode=instructor.Mode.JSON,
@@ -209,18 +209,18 @@ class LLMWrapper(BaseLLMWrapper):
                 return client.chat.completions.create(
                     response_model=response_model,
                     messages=messages,
-                    model=self.model_name,
+                    model=self.model_name.value,
                     seed=self.model_seed,
                 )
             case LLMProvider.ANTHROPIC:
                 client = instructor.from_anthropic(
                     client=Anthropic(
-                        api_key=self.config.must_get_raw_api_key("anthropic_api_key"),
+                        api_key=self.api_key.get_secret_value(),
                     ),
                     mode=instructor.Mode.ANTHROPIC_JSON,
                 )
                 return client.chat.completions.create(
-                    model=self.model_name,
+                    model=self.model_name.value,
                     response_model=response_model,
                     messages=messages,
                     max_tokens=2048,
@@ -228,11 +228,11 @@ class LLMWrapper(BaseLLMWrapper):
             case LLMProvider.MISTRALAI:
                 client = instructor.from_mistral(
                     client=Mistral(
-                        api_key=self.config.must_get_raw_api_key("mistralai_api_key"),
+                        api_key=self.api_key.get_secret_value(),
                     ),
                 )
                 return client.chat.completions.create(  # pyright: ignore[reportReturnType]
-                    model=self.model_name,
+                    model=self.model_name.value,
                     response_model=response_model,
                     messages=messages,
                 )

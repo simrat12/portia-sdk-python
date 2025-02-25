@@ -24,6 +24,7 @@ from pydantic import (
 )
 
 from portia.errors import ConfigNotFoundError, InvalidConfigError
+from portia.logger import logger
 
 T = TypeVar("T")
 
@@ -72,21 +73,6 @@ class LLMProvider(Enum):
             case LLMProvider.MISTRALAI:
                 return SUPPORTED_MISTRALAI_MODELS
 
-    def default_model(self) -> LLMModel:
-        """Get the default model for the provider.
-
-        Returns:
-            LLMModel: The default model for the provider.
-
-        """
-        match self:
-            case LLMProvider.OPENAI:
-                return LLMModel.GPT_4_O
-            case LLMProvider.ANTHROPIC:
-                return LLMModel.CLAUDE_3_5_SONNET
-            case LLMProvider.MISTRALAI:
-                return LLMModel.MISTRAL_LARGE_LATEST
-
 
 class LLMModel(Enum):
     """Enum for supported LLM models.
@@ -102,7 +88,7 @@ class LLMModel(Enum):
         GPT_3_5_TURBO: GPT-3.5 Turbo model by OpenAI.
         CLAUDE_3_5_SONNET: Claude 3.5 Sonnet model by Anthropic.
         CLAUDE_3_5_HAIKU: Claude 3.5 Haiku model by Anthropic.
-        CLAUDE_3_OPUS_LATEST: Claude 3.0 Opus latest model by Anthropic.
+        CLAUDE_3_OPUS: Claude 3.0 Opus model by Anthropic.
         MISTRAL_LARGE_LATEST: Mistral Large Latest model by MistralAI.
 
     """
@@ -116,7 +102,7 @@ class LLMModel(Enum):
     # Anthropic
     CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
     CLAUDE_3_5_HAIKU = "claude-3-5-haiku-latest"
-    CLAUDE_3_OPUS_LATEST = "claude-3-opus-latest"
+    CLAUDE_3_OPUS = "claude-3-opus-latest"
 
     # MistralAI
     MISTRAL_LARGE_LATEST = "mistral-large-latest"
@@ -145,7 +131,7 @@ SUPPORTED_OPENAI_MODELS = [
 SUPPORTED_ANTHROPIC_MODELS = [
     LLMModel.CLAUDE_3_5_HAIKU,
     LLMModel.CLAUDE_3_5_SONNET,
-    LLMModel.CLAUDE_3_OPUS_LATEST,
+    LLMModel.CLAUDE_3_OPUS,
 ]
 
 SUPPORTED_MISTRALAI_MODELS = [
@@ -252,8 +238,210 @@ def parse_str_to_enum(value: str | E, enum_type: type[E]) -> E:
     )
 
 
-class BaseConfig(BaseModel):
-    """Base class for all configuration classes."""
+class Config(BaseModel):
+    """General configuration for the SDK.
+
+    This class holds the configuration for the SDK, including API keys, LLM
+    settings, logging options, and storage settings. It also provides validation
+    for configuration consistency and offers methods for loading configuration
+    from files or default values.
+
+    Attributes:
+        portia_api_endpoint: The endpoint for the Portia API.
+        portia_api_key: The API key for Portia.
+        openai_api_key: The API key for OpenAI.
+        anthropic_api_key: The API key for Anthropic.
+        mistralai_api_key: The API key for MistralAI.
+        storage_class: The storage class used (e.g., MEMORY, DISK, CLOUD).
+        storage_dir: The directory for storage, if applicable.
+        default_log_level: The default log level (e.g., DEBUG, INFO).
+        default_log_sink: The default destination for logs (e.g., sys.stdout).
+        json_log_serialize: Whether to serialize logs in JSON format.
+        planner_llm_model_name: The specific LLM model used for the planner agent.
+        execution_llm_model_name: The specific LLM model used for the execution agent.
+        llm_tool_model_name: The specific LLM model used for the LLM tool.
+        summariser_llm_model_name: The specific LLM model used for summarization tasks.
+        default_agent_type: The default agent type.
+        default_planner: The default planner type.
+
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    # Portia Cloud Options
+    portia_api_endpoint: str = Field(
+        default_factory=lambda: os.getenv("PORTIA_API_ENDPOINT") or "https://api.portialabs.ai",
+        description="The API endpoint for the Portia Cloud API",
+    )
+    portia_api_key: SecretStr | None = Field(
+        default_factory=lambda: SecretStr(os.getenv("PORTIA_API_KEY") or ""),
+        description="The API Key for the Portia Cloud API available from the dashboard at https://app.portialabs.ai",
+    )
+
+    # LLM API Keys
+    openai_api_key: SecretStr = Field(
+        default_factory=lambda: SecretStr(os.getenv("OPENAI_API_KEY") or ""),
+        description="The API Key for OpenAI. Must be set if llm-provider is OPENAI",
+    )
+    anthropic_api_key: SecretStr = Field(
+        default_factory=lambda: SecretStr(os.getenv("ANTHROPIC_API_KEY") or ""),
+        description="The API Key for Anthropic. Must be set if llm-provider is ANTHROPIC",
+    )
+    mistralai_api_key: SecretStr = Field(
+        default_factory=lambda: SecretStr(os.getenv("MISTRAL_API_KEY") or ""),
+        description="The API Key for Mistral AI. Must be set if llm-provider is MISTRALAI",
+    )
+
+    # Storage Options
+    storage_class: StorageClass = Field(
+        default=StorageClass.MEMORY,
+        description="Where to store Plans and Workflows. By default these will be kept in memory.",
+    )
+
+    @field_validator("storage_class", mode="before")
+    @classmethod
+    def parse_storage_class(cls, value: str | StorageClass) -> StorageClass:
+        """Parse storage class to enum if string provided."""
+        return parse_str_to_enum(value, StorageClass)
+
+    storage_dir: str | None = Field(
+        default=None,
+        description="If storage class is set to DISK this will be the location where plans "
+        "and workflows are written in a JSON format.",
+    )
+
+    # Logging Options
+
+    # default_log_level controls the minimal log level, i.e. setting to DEBUG will print all logs
+    # where as setting it to ERROR will only display ERROR and above.
+    default_log_level: LogLevel = Field(
+        default=LogLevel.INFO,
+        description="The log level to log at. Only respected when the default logger is used.",
+    )
+
+    @field_validator("default_log_level", mode="before")
+    @classmethod
+    def parse_default_log_level(cls, value: str | LogLevel) -> LogLevel:
+        """Parse default_log_level to enum if string provided."""
+        return parse_str_to_enum(value, LogLevel)
+
+    # default_log_sink controls where default logs are sent. By default this is STDOUT (sys.stdout)
+    # but can also be set to STDERR (sys.stderr)
+    # or to a file by setting this to a file path ("./logs.txt")
+    default_log_sink: str = Field(
+        default="sys.stdout",
+        description="Where to send logs. By default logs will be sent to sys.stdout",
+    )
+    # json_log_serialize sets whether logs are JSON serialized before sending to the log sink.
+    json_log_serialize: bool = Field(
+        default=False,
+        description="Whether to serialize logs to JSON",
+    )
+
+    planner_llm_model_name: LLMModel = Field(
+        default=LLMModel.O3_MINI,
+        description="Which LLM Model to use for the planner.",
+    )
+    execution_llm_model_name: LLMModel = Field(
+        description="Which LLM Model to use for the execution agent.",
+    )
+    llm_tool_model_name: LLMModel = Field(
+        description="Which LLM Model to use for the LLM tool.",
+    )
+    summariser_llm_model_name: LLMModel = Field(
+        description="Which LLM Model to use for the summariser.",
+    )
+
+    @field_validator(
+        "planner_llm_model_name",
+        "execution_llm_model_name",
+        "llm_tool_model_name",
+        "summariser_llm_model_name",
+        mode="before",
+    )
+    @classmethod
+    def parse_llm_model_name(cls, value: str | LLMModel) -> LLMModel:
+        """Parse llm_model_name to enum if string provided."""
+        return parse_str_to_enum(value, LLMModel)
+
+    # Agent Options
+    default_agent_type: AgentType = Field(
+        default=AgentType.VERIFIER,
+        description="The default agent type to use.",
+    )
+
+    @field_validator("default_agent_type", mode="before")
+    @classmethod
+    def parse_default_agent_type(cls, value: str | AgentType) -> AgentType:
+        """Parse default_agent_type to enum if string provided."""
+        return parse_str_to_enum(value, AgentType)
+
+    # Planner Options
+    default_planner: PlannerType = Field(
+        default=PlannerType.ONE_SHOT,
+        description="The default planner to use.",
+    )
+
+    @field_validator("default_planner", mode="before")
+    @classmethod
+    def parse_default_planner(cls, value: str | PlannerType) -> PlannerType:
+        """Parse default_planner to enum if string provided."""
+        return parse_str_to_enum(value, PlannerType)
+
+    @model_validator(mode="after")
+    def check_config(self) -> Self:
+        """Validate Config is consistent."""
+        # Portia API Key must be provided if using cloud storage
+        if self.storage_class == StorageClass.CLOUD and not self.has_api_key("portia_api_key"):
+            raise InvalidConfigError("portia_api_key", "Must be provided if using cloud storage")
+
+        def validate_llm_api_key(expected_key: str, provider: LLMProvider) -> None:
+            """Validate LLM Config."""
+            if not self.has_api_key(expected_key):
+                raise InvalidConfigError(
+                    f"{expected_key}",
+                    f"Must be provided if using {provider}",
+                )
+
+        providers = {
+            model.provider()
+            for model in [
+                self.planner_llm_model_name,
+                self.execution_llm_model_name,
+                self.llm_tool_model_name,
+                self.summariser_llm_model_name,
+            ]
+        }
+        for provider in providers:
+            match provider:
+                case LLMProvider.OPENAI:
+                    validate_llm_api_key("openai_api_key", LLMProvider.OPENAI)
+                case LLMProvider.ANTHROPIC:
+                    validate_llm_api_key("anthropic_api_key", LLMProvider.ANTHROPIC)
+                case LLMProvider.MISTRALAI:
+                    validate_llm_api_key("mistralai_api_key", LLMProvider.MISTRALAI)
+        return self
+
+    @classmethod
+    def from_file(cls, file_path: Path) -> Config:
+        """Load configuration from a JSON file.
+
+        Returns:
+            Config: The default config
+
+        """
+        with Path.open(file_path) as f:
+            return cls.model_validate_json(f.read())
+
+    @classmethod
+    def from_default(cls, **kwargs) -> Config:  # noqa: ANN003
+        """Create a Config instance with default values, allowing overrides.
+
+        Returns:
+            Config: The default config
+
+        """
+        return default_config(**kwargs)
 
     def has_api_key(self, name: str) -> bool:
         """Check if the given API Key is available."""
@@ -317,201 +505,56 @@ class BaseConfig(BaseModel):
                 raise InvalidConfigError(name, "Empty SecretStr value not allowed")
         return value
 
-
-class Config(BaseConfig):
-    """General configuration for the SDK.
-
-    This class holds the configuration for the SDK, including API keys, LLM
-    settings, logging options, and storage settings. It also provides validation
-    for configuration consistency and offers methods for loading configuration
-    from files or default values.
-
-    Attributes:
-        portia_api_endpoint: The endpoint for the Portia API.
-        portia_api_key: The API key for Portia.
-        openai_api_key: The API key for OpenAI.
-        anthropic_api_key: The API key for Anthropic.
-        mistralai_api_key: The API key for MistralAI.
-        storage_class: The storage class used (e.g., MEMORY, DISK, CLOUD).
-        storage_dir: The directory for storage, if applicable.
-        default_log_level: The default log level (e.g., DEBUG, INFO).
-        default_log_sink: The default destination for logs (e.g., sys.stdout).
-        json_log_serialize: Whether to serialize logs in JSON format.
-        planner_llm_model_name: The specific LLM model used for the planner agent.
-        execution_llm_model_name: The specific LLM model used for the execution agent.
-        llm_tool_model_name: The specific LLM model used for the LLM tool.
-        summariser_llm_model_name: The specific LLM model used for summarization tasks.
-        default_agent_type: The default agent type.
-        default_planner: The default planner type.
-
-    """
-
-    model_config = ConfigDict(extra="ignore")
-
-    # Portia Cloud Options
-    portia_api_endpoint: str = Field(
-        default_factory=lambda: os.getenv("PORTIA_API_ENDPOINT") or "https://api.portialabs.ai",
-        description="The API endpoint for the Portia Cloud API",
-    )
-    portia_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("PORTIA_API_KEY") or ""),
-        description="The API Key for the Portia Cloud API available from the dashboard at https://app.portialabs.ai",
-    )
-
-    openai_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("OPENAI_API_KEY") or ""),
-        description="The API Key for OpenAI. Must be set if llm-provider is OPENAI",
-    )
-    anthropic_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("ANTHROPIC_API_KEY") or ""),
-        description="The API Key for Anthropic. Must be set if llm-provider is ANTHROPIC",
-    )
-    mistralai_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("MISTRAL_API_KEY") or ""),
-        description="The API Key for Mistral AI. Must be set if llm-provider is MISTRALAI",
-    )
-
-    # Storage Options
-    storage_class: StorageClass = Field(
-        default=StorageClass.MEMORY,
-        description="Where to store Plans and Workflows. By default these will be kept in memory.",
-    )
-
-    @field_validator("storage_class", mode="before")
-    @classmethod
-    def parse_storage_class(cls, value: str | StorageClass) -> StorageClass:
-        """Parse storage class to enum if string provided."""
-        return parse_str_to_enum(value, StorageClass)
-
-    storage_dir: str | None = Field(
-        default=None,
-        description="If storage class is set to DISK this will be the location where plans "
-        "and workflows are written in a JSON format.",
-    )
-
-    # Logging Options
-
-    # default_log_level controls the minimal log level, i.e. setting to DEBUG will print all logs
-    # where as setting it to ERROR will only display ERROR and above.
-    default_log_level: LogLevel = Field(
-        default=LogLevel.INFO,
-        description="The log level to log at. Only respected when the default logger is used.",
-    )
-
-    @field_validator("default_log_level", mode="before")
-    @classmethod
-    def parse_default_log_level(cls, value: str | LogLevel) -> LogLevel:
-        """Parse default_log_level to enum if string provided."""
-        return parse_str_to_enum(value, LogLevel)
-
-    # default_log_sink controls where default logs are sent. By default this is STDOUT (sys.stdout)
-    # but can also be set to STDERR (sys.stderr)
-    # or to a file by setting this to a file path ("./logs.txt")
-    default_log_sink: str = Field(
-        default="sys.stdout",
-        description="Where to send logs. By default logs will be sent to sys.stdout",
-    )
-    # json_log_serialize sets whether logs are JSON serialized before sending to the log sink.
-    json_log_serialize: bool = Field(
-        default=False,
-        description="Whether to serialize logs to JSON",
-    )
-
-    planner_llm_model_name: LLMModel = Field(
-        default=LLMModel.O3_MINI,
-        description="Which LLM Model to use for the planner.",
-    )
-
-    execution_llm_model_name: LLMModel = Field(
-        description="Which LLM Model to use for the execution agent.",
-    )
-
-    llm_tool_model_name: LLMModel = Field(
-        description="Which LLM Model to use for the LLM tool.",
-    )
-
-    summariser_llm_model_name: LLMModel = Field(
-        description="Which LLM Model to use for the summariser.",
-    )
-
-    # Agent Options
-    default_agent_type: AgentType = Field(
-        default=AgentType.VERIFIER,
-        description="The default agent type to use.",
-    )
-
-    @field_validator("default_agent_type", mode="before")
-    @classmethod
-    def parse_default_agent_type(cls, value: str | AgentType) -> AgentType:
-        """Parse default_agent_type to enum if string provided."""
-        return parse_str_to_enum(value, AgentType)
-
-    # Planner Options
-    default_planner: PlannerType = Field(
-        default=PlannerType.ONE_SHOT,
-        description="The default planner to use.",
-    )
-
-    @field_validator("default_planner", mode="before")
-    @classmethod
-    def parse_default_planner(cls, value: str | PlannerType) -> PlannerType:
-        """Parse default_planner to enum if string provided."""
-        return parse_str_to_enum(value, PlannerType)
-
-    @model_validator(mode="after")
-    def check_config(self) -> Self:
-        """Validate Config is consistent."""
-        # Portia API Key must be provided if using cloud storage
-        if self.storage_class == StorageClass.CLOUD and not self.has_api_key("portia_api_key"):
-            raise InvalidConfigError("portia_api_key", "Must be provided if using cloud storage")
-
-        def validate_llm_api_key(expected_key: str) -> None:
-            """Validate LLM Config."""
-            if not self.has_api_key(expected_key):
-                raise InvalidConfigError(
-                    f"{expected_key}",
-                    f"Must be provided if using {self.llm_provider}",
-                )
-
-        providers = {
-            model.provider()
-            for model in [
-                self.planner_llm_model_name,
-                self.execution_llm_model_name,
-                self.llm_tool_model_name,
-                self.summariser_llm_model_name,
-            ]
-        }
-        for provider in providers:
-            match provider:
-                case LLMProvider.OPENAI:
-                    validate_llm_api_key("openai_api_key")
-                case LLMProvider.ANTHROPIC:
-                    validate_llm_api_key("anthropic_api_key")
-                case LLMProvider.MISTRALAI:
-                    validate_llm_api_key("mistralai_api_key")
-        return self
-
-    @classmethod
-    def from_file(cls, file_path: Path) -> Config:
-        """Load configuration from a JSON file.
+    def get_llm_api_key(self, model_name: LLMModel) -> SecretStr:
+        """Get the API key for the given LLM model.
 
         Returns:
-            Config: The default config
+            SecretStr: The API key for the given LLM model.
 
         """
-        with Path.open(file_path) as f:
-            return cls.model_validate_json(f.read())
+        match model_name.provider():
+            case LLMProvider.OPENAI:
+                return self.openai_api_key
+            case LLMProvider.ANTHROPIC:
+                return self.anthropic_api_key
+            case LLMProvider.MISTRALAI:
+                return self.mistralai_api_key
 
-    @classmethod
-    def from_default(cls, **kwargs) -> Config:  # noqa: ANN003
-        """Create a Config instance with default values, allowing overrides.
 
-        Returns:
-            Config: The default config
+PLANNER_DEFAULT_MODELS = {
+    LLMProvider.OPENAI: LLMModel.O3_MINI,
+    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
+    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
+}
 
-        """
-        return default_config(**kwargs)
+EXECUTION_DEFAULT_MODELS = {
+    LLMProvider.OPENAI: LLMModel.GPT_4_O,
+    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
+    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
+}
+
+LLM_TOOL_DEFAULT_MODELS = {
+    LLMProvider.OPENAI: LLMModel.GPT_4_O,
+    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
+    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
+}
+
+SUMMARISER_DEFAULT_MODELS = {
+    LLMProvider.OPENAI: LLMModel.GPT_4_O,
+    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
+    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
+}
+
+
+def llm_provider_default_from_api_keys() -> LLMProvider:
+    """Get the default LLM provider from the API keys."""
+    if os.getenv("OPENAI_API_KEY"):
+        return LLMProvider.OPENAI
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return LLMProvider.ANTHROPIC
+    if os.getenv("MISTRAL_API_KEY"):
+        return LLMProvider.MISTRALAI
+    return LLMProvider.OPENAI
 
 
 def default_config(**kwargs) -> Config:  # noqa: ANN003
@@ -521,30 +564,61 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
         Config: The default config
 
     """
+    # Precedence for LLM config is:
+    # 1. Specific LLM model name - e.g. planner_llm_model_name="gpt-4o"
+    # 2. General LLM model name - e.g. llm_model_name="gpt-4o"
+    # 3. Default for specified provider - e.g. llm_provider="openai"
+    # 4. Default for a provider based on API keys available
+    # 5. Default for OpenAI
+
+    if "llm_model_name" in kwargs and "llm_provider" in kwargs:
+        llm_model_name = parse_str_to_enum(kwargs.get("llm_model_name", LLMModel.O3_MINI), LLMModel)
+        llm_provider = parse_str_to_enum(
+            kwargs.get("llm_provider", LLMProvider.OPENAI),
+            LLMProvider,
+        )
+        if llm_model_name.provider() != llm_provider:
+            logger().warning(
+                "llm_model_name and llm_provider do not match. "
+                "Using llm_model_name to determine defaults.",
+            )
+
     if "llm_model_name" in kwargs:
-        llm_model_name = kwargs.pop("llm_model_name", LLMModel.GPT_4_O)
-        planner_llm_model_name = llm_model_name
-        execution_llm_model_name = llm_model_name
-        llm_tool_model_name = llm_model_name
-        summariser_llm_model_name = llm_model_name
-    elif "llm_provider" in kwargs:
-        llm_model_name = parse_str_to_enum(kwargs.pop("llm_provider"), LLMProvider).default_model()
-        planner_llm_model_name = llm_model_name
-        execution_llm_model_name = llm_model_name
-        llm_tool_model_name = llm_model_name
-        summariser_llm_model_name = llm_model_name
+        llm_model_name = kwargs.pop("llm_model_name")
+        default_planner_llm_model_name = llm_model_name
+        default_execution_llm_model_name = llm_model_name
+        default_llm_tool_model_name = llm_model_name
+        default_summariser_llm_model_name = llm_model_name
     else:
-        planner_llm_model_name = kwargs.pop("planner_llm_model_name", LLMModel.O3_MINI)
-        execution_llm_model_name = kwargs.pop("execution_llm_model_name", LLMModel.GPT_4_O)
-        llm_tool_model_name = kwargs.pop("llm_tool_model_name", LLMModel.GPT_4_O)
-        summariser_llm_model_name = kwargs.pop("summariser_llm_model_name", LLMModel.GPT_4_O)
+        # If the user specifies a provider, use that when determining defaults - otherwise,
+        # work out their chosen provider based on what API keys they have set.
+        provider = parse_str_to_enum(
+            kwargs.pop("llm_provider", llm_provider_default_from_api_keys()),
+            LLMProvider,
+        )
+        default_planner_llm_model_name = PLANNER_DEFAULT_MODELS[provider]
+        default_execution_llm_model_name = EXECUTION_DEFAULT_MODELS[provider]
+        default_llm_tool_model_name = LLM_TOOL_DEFAULT_MODELS[provider]
+        default_summariser_llm_model_name = SUMMARISER_DEFAULT_MODELS[provider]
 
     return Config(
         storage_class=kwargs.pop("storage_class", StorageClass.MEMORY),
-        planner_llm_model_name=planner_llm_model_name,
-        execution_llm_model_name=execution_llm_model_name,
-        llm_tool_model_name=llm_tool_model_name,
-        summariser_llm_model_name=summariser_llm_model_name,
+        planner_llm_model_name=kwargs.pop(
+            "planner_llm_model_name",
+            default_planner_llm_model_name,
+        ),
+        execution_llm_model_name=kwargs.pop(
+            "execution_llm_model_name",
+            default_execution_llm_model_name,
+        ),
+        llm_tool_model_name=kwargs.pop(
+            "llm_tool_model_name",
+            default_llm_tool_model_name,
+        ),
+        summariser_llm_model_name=kwargs.pop(
+            "summariser_llm_model_name",
+            default_summariser_llm_model_name,
+        ),
         default_planner=kwargs.pop("default_planner", PlannerType.ONE_SHOT),
         default_agent_type=kwargs.pop("default_agent_type", AgentType.VERIFIER),
         **kwargs,
