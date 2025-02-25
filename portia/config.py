@@ -81,7 +81,7 @@ class LLMProvider(Enum):
         """
         match self:
             case LLMProvider.OPENAI:
-                return LLMModel.GPT_4_O_MINI
+                return LLMModel.GPT_4_O
             case LLMProvider.ANTHROPIC:
                 return LLMModel.CLAUDE_3_5_SONNET
             case LLMProvider.MISTRALAI:
@@ -318,84 +318,6 @@ class BaseConfig(BaseModel):
         return value
 
 
-class LLMConfig(BaseConfig):
-    """Configuration for LLM providers.
-
-    Attributes:
-        llm_provider: The LLM provider.
-        llm_model_name: The LLM model name.
-        llm_model_seed: The seed for LLM generation.
-
-    """
-
-    llm_provider: LLMProvider = Field(
-        default=LLMProvider.OPENAI,
-        description="Which LLM Provider to use.",
-    )
-
-    @field_validator("llm_provider", mode="before")
-    @classmethod
-    def parse_llm_provider(cls, value: str | LLMProvider) -> LLMProvider:
-        """Parse llm_provider to enum if string provided."""
-        return parse_str_to_enum(value, LLMProvider)
-
-    llm_model_name: LLMModel = Field(
-        default=LLMModel.O3_MINI,
-        description="Which LLM Model to use.",
-    )
-
-    @field_validator("llm_model_name", mode="before")
-    @classmethod
-    def parse_llm_model_name(cls, value: str | LLMModel) -> LLMModel:
-        """Parse llm_model_name to enum if string provided."""
-        return parse_str_to_enum(value, LLMModel)
-
-    llm_model_seed: PositiveNumber = Field(
-        default=443,
-        description="The model seed to use.",
-    )
-
-    openai_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("OPENAI_API_KEY") or ""),
-        description="The API Key for OpenAI. Must be set if llm-provider is OPENAI",
-    )
-    anthropic_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("ANTHROPIC_API_KEY") or ""),
-        description="The API Key for Anthropic. Must be set if llm-provider is ANTHROPIC",
-    )
-    mistralai_api_key: SecretStr | None = Field(
-        default_factory=lambda: SecretStr(os.getenv("MISTRAL_API_KEY") or ""),
-        description="The API Key for Mistral AI. Must be set if llm-provider is MISTRALAI",
-    )
-
-    @model_validator(mode="after")
-    def check_config(self) -> Self:
-        """Validate Config is consistent."""
-
-        def validate_llm_config(expected_key: str, supported_models: list[LLMModel]) -> None:
-            """Validate LLM Config."""
-            if not self.has_api_key(expected_key):
-                raise InvalidConfigError(
-                    f"{expected_key}",
-                    f"Must be provided if using {self.llm_provider}",
-                )
-            if self.llm_model_name not in supported_models:
-                raise InvalidConfigError(
-                    "llm_model_name",
-                    "Unsupported model please use one of: "
-                    + ", ".join(model.value for model in supported_models),
-                )
-
-        match self.llm_provider:
-            case LLMProvider.OPENAI:
-                validate_llm_config("openai_api_key", SUPPORTED_OPENAI_MODELS)
-            case LLMProvider.ANTHROPIC:
-                validate_llm_config("anthropic_api_key", SUPPORTED_ANTHROPIC_MODELS)
-            case LLMProvider.MISTRALAI:
-                validate_llm_config("mistralai_api_key", SUPPORTED_MISTRALAI_MODELS)
-        return self
-
-
 class Config(BaseConfig):
     """General configuration for the SDK.
 
@@ -415,18 +337,10 @@ class Config(BaseConfig):
         default_log_level: The default log level (e.g., DEBUG, INFO).
         default_log_sink: The default destination for logs (e.g., sys.stdout).
         json_log_serialize: Whether to serialize logs in JSON format.
-        planner_llm_provider: The LLM provider used for the planner agent.
         planner_llm_model_name: The specific LLM model used for the planner agent.
-        planner_llm_model_seed: The seed value used for the planner agent.
-        execution_lm_provider: The LLM provider used for the execution agent.
         execution_llm_model_name: The specific LLM model used for the execution agent.
-        execution_llm_model_seed: The seed value used for the execution agent.
-        llm_tool_provider: The LLM provider used for the LLM tool
         llm_tool_model_name: The specific LLM model used for the LLM tool.
-        llm_tool_model_seed: The seed value used for the LLM tool.
-        summariser_llm_provider: The LLM provider used for summarization tasks.
         summariser_llm_model_name: The specific LLM model used for summarization tasks.
-        summariser_llm_model_seed: The seed value used for summarizer LLM model reproducibility.
         default_agent_type: The default agent type.
         default_planner: The default planner type.
 
@@ -442,6 +356,19 @@ class Config(BaseConfig):
     portia_api_key: SecretStr | None = Field(
         default_factory=lambda: SecretStr(os.getenv("PORTIA_API_KEY") or ""),
         description="The API Key for the Portia Cloud API available from the dashboard at https://app.portialabs.ai",
+    )
+
+    openai_api_key: SecretStr | None = Field(
+        default_factory=lambda: SecretStr(os.getenv("OPENAI_API_KEY") or ""),
+        description="The API Key for OpenAI. Must be set if llm-provider is OPENAI",
+    )
+    anthropic_api_key: SecretStr | None = Field(
+        default_factory=lambda: SecretStr(os.getenv("ANTHROPIC_API_KEY") or ""),
+        description="The API Key for Anthropic. Must be set if llm-provider is ANTHROPIC",
+    )
+    mistralai_api_key: SecretStr | None = Field(
+        default_factory=lambda: SecretStr(os.getenv("MISTRAL_API_KEY") or ""),
+        description="The API Key for Mistral AI. Must be set if llm-provider is MISTRALAI",
     )
 
     # Storage Options
@@ -490,11 +417,22 @@ class Config(BaseConfig):
         description="Whether to serialize logs to JSON",
     )
 
-    # LLM Options
-    planner_llm_config: LLMConfig
-    agent_llm_config: LLMConfig
-    llm_tool_config: LLMConfig
-    summariser_llm_config: LLMConfig
+    planner_llm_model_name: LLMModel = Field(
+        default=LLMModel.O3_MINI,
+        description="Which LLM Model to use for the planner.",
+    )
+
+    execution_llm_model_name: LLMModel = Field(
+        description="Which LLM Model to use for the execution agent.",
+    )
+
+    llm_tool_model_name: LLMModel = Field(
+        description="Which LLM Model to use for the LLM tool.",
+    )
+
+    summariser_llm_model_name: LLMModel = Field(
+        description="Which LLM Model to use for the summariser.",
+    )
 
     # Agent Options
     default_agent_type: AgentType = Field(
@@ -526,6 +464,32 @@ class Config(BaseConfig):
         # Portia API Key must be provided if using cloud storage
         if self.storage_class == StorageClass.CLOUD and not self.has_api_key("portia_api_key"):
             raise InvalidConfigError("portia_api_key", "Must be provided if using cloud storage")
+
+        def validate_llm_api_key(expected_key: str) -> None:
+            """Validate LLM Config."""
+            if not self.has_api_key(expected_key):
+                raise InvalidConfigError(
+                    f"{expected_key}",
+                    f"Must be provided if using {self.llm_provider}",
+                )
+
+        providers = {
+            model.provider()
+            for model in [
+                self.planner_llm_model_name,
+                self.execution_llm_model_name,
+                self.llm_tool_model_name,
+                self.summariser_llm_model_name,
+            ]
+        }
+        for provider in providers:
+            match provider:
+                case LLMProvider.OPENAI:
+                    validate_llm_api_key("openai_api_key")
+                case LLMProvider.ANTHROPIC:
+                    validate_llm_api_key("anthropic_api_key")
+                case LLMProvider.MISTRALAI:
+                    validate_llm_api_key("mistralai_api_key")
         return self
 
     @classmethod
@@ -557,59 +521,30 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
         Config: The default config
 
     """
-    # TODO: THINK ABOUT SETTING THIS BASED ON API KEYS
-    if {"llm_provider", "llm_model_name", "llm_model_seed"} & kwargs.keys():
-        llm_provider = kwargs.pop("llm_provider", LLMProvider.OPENAI)
-        llm_model_name = kwargs.pop("llm_model_name", LLMModel.GPT_4_O_MINI)
-        llm_model_seed = kwargs.pop("llm_model_seed", 443)
-
-        planner_llm_config = LLMConfig(
-            llm_provider=llm_provider,
-            llm_model_name=llm_model_name,
-            llm_model_seed=llm_model_seed,
-        )
-        agent_llm_config = LLMConfig(
-            llm_provider=llm_provider,
-            llm_model_name=llm_model_name,
-            llm_model_seed=llm_model_seed,
-        )
-        llm_tool_config = LLMConfig(
-            llm_provider=llm_provider,
-            llm_model_name=llm_model_name,
-            llm_model_seed=llm_model_seed,
-        )
-        summariser_llm_config = LLMConfig(
-            llm_provider=llm_provider,
-            llm_model_name=llm_model_name,
-            llm_model_seed=llm_model_seed,
-        )
+    if "llm_model_name" in kwargs:
+        llm_model_name = kwargs.pop("llm_model_name", LLMModel.GPT_4_O)
+        planner_llm_model_name = llm_model_name
+        execution_llm_model_name = llm_model_name
+        llm_tool_model_name = llm_model_name
+        summariser_llm_model_name = llm_model_name
+    elif "llm_provider" in kwargs:
+        llm_model_name = parse_str_to_enum(kwargs.pop("llm_provider"), LLMProvider).default_model()
+        planner_llm_model_name = llm_model_name
+        execution_llm_model_name = llm_model_name
+        llm_tool_model_name = llm_model_name
+        summariser_llm_model_name = llm_model_name
     else:
-        planner_llm_config = LLMConfig(
-            llm_provider=kwargs.pop("planner_llm_provider", LLMProvider.OPENAI),
-            llm_model_name=kwargs.pop("planner_llm_model_name", LLMModel.O3_MINI),
-            llm_model_seed=kwargs.pop("planner_llm_model_seed", 443),
-        )
-        agent_llm_config = LLMConfig(
-            llm_provider=kwargs.pop("execution_llm_provider", LLMProvider.OPENAI),
-            llm_model_name=kwargs.pop("execution_llm_model_name", LLMModel.GPT_4_O_MINI),
-            llm_model_seed=kwargs.pop("execution_llm_model_seed", 443),
-        )
-        llm_tool_config = LLMConfig(
-            llm_provider=kwargs.pop("summariser_llm_provider", LLMProvider.OPENAI),
-            llm_model_name=kwargs.pop("summariser_llm_model_name", LLMModel.GPT_4_O_MINI),
-            llm_model_seed=kwargs.pop("summariser_llm_model_seed", 443),
-        )
-        summariser_llm_config = LLMConfig(
-            llm_provider=kwargs.pop("llm_tool_provider", LLMProvider.OPENAI),
-            llm_model_name=kwargs.pop("llm_tool_model_name", LLMModel.GPT_4_O_MINI),
-            llm_model_seed=kwargs.pop("llm_tool_model_seed", 443),
-        )
+        planner_llm_model_name = kwargs.pop("planner_llm_model_name", LLMModel.O3_MINI)
+        execution_llm_model_name = kwargs.pop("execution_llm_model_name", LLMModel.GPT_4_O)
+        llm_tool_model_name = kwargs.pop("llm_tool_model_name", LLMModel.GPT_4_O)
+        summariser_llm_model_name = kwargs.pop("summariser_llm_model_name", LLMModel.GPT_4_O)
+
     return Config(
         storage_class=kwargs.pop("storage_class", StorageClass.MEMORY),
-        planner_llm_config=planner_llm_config,
-        agent_llm_config=agent_llm_config,
-        llm_tool_config=llm_tool_config,
-        summariser_llm_config=summariser_llm_config,
+        planner_llm_model_name=planner_llm_model_name,
+        execution_llm_model_name=execution_llm_model_name,
+        llm_tool_model_name=llm_tool_model_name,
+        summariser_llm_model_name=summariser_llm_model_name,
         default_planner=kwargs.pop("default_planner", PlannerType.ONE_SHOT),
         default_agent_type=kwargs.pop("default_agent_type", AgentType.VERIFIER),
         **kwargs,

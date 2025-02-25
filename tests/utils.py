@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from pydantic import BaseModel, Field
 
 from portia.clarification import Clarification, InputClarification
-from portia.config import Config, LLMConfig, LogLevel
+from portia.config import Config, LogLevel
 from portia.errors import ToolHardError, ToolSoftError
 from portia.execution_context import ExecutionContext, empty_context
 from portia.plan import Plan, PlanContext, Step, Variable
@@ -68,13 +68,6 @@ def get_test_tool_call(workflow: Workflow) -> ToolCallRecord:
         input={},
         latency_seconds=10,
         status=ToolCallStatus.SUCCESS,
-    )
-
-
-def get_test_llm_config(**kwargs) -> LLMConfig:  # noqa: ANN003
-    """Get test LLM config."""
-    return LLMConfig(
-        **kwargs,
     )
 
 

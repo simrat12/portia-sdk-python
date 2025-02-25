@@ -33,7 +33,7 @@ from mistralai import Mistral
 from openai import OpenAI
 from pydantic import BaseModel
 
-from portia.config import LLMConfig, LLMModel, LLMProvider
+from portia.config import LLMModel, LLMProvider
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import (
@@ -59,14 +59,14 @@ class BaseLLMWrapper(ABC):
 
     """
 
-    def __init__(self, config: LLMConfig) -> None:
+    def __init__(self, api_key: str) -> None:
         """Initialize the base LLM wrapper.
 
         Args:
-            config (LLMConfig): The configuration object containing settings for the LLM.
+            api_key (str): The API key for the LLM provider.
 
         """
-        self.config = config
+        self.api_key = api_key
 
     @abstractmethod
     def to_langchain(self) -> BaseChatModel:
@@ -114,8 +114,8 @@ class LLMWrapper(BaseLLMWrapper):
     LangChain-compatible model and to generate responses using the instructor tool.
 
     Attributes:
-        llm_provider (LLMProvider): The LLM provider to use (e.g., OpenAI, Anthropic, MistralAI).
         model_name (str): The name of the model to use.
+        api_key (str): The API key for the LLM provider.
         model_seed (int): The seed for the model's random generation.
 
     Methods:
@@ -126,18 +126,22 @@ class LLMWrapper(BaseLLMWrapper):
 
     def __init__(
         self,
-        config: LLMConfig,
+        model_name: str,
+        api_key: str,
+        # A randomly chosen seed for the model's random generation.
+        model_seed: int = 343,
     ) -> None:
         """Initialize the wrapper.
 
         Args:
-            config (Config): The configuration object containing settings for the LLM.
+            model_name (str): The name of the LLM model to use.
+            api_key (str): The API key for authentication with the LLM provider.
+            model_seed (int, optional): Seed for model's random generation. Defaults to 343.
 
         """
-        super().__init__(config)
-        self.llm_provider = config.llm_provider
-        self.model_name = config.llm_model_name.value
-        self.model_seed = config.llm_model_seed
+        super().__init__(api_key)
+        self.model_name = model_name
+        self.model_seed = model_seed
 
     def to_langchain(self) -> BaseChatModel:
         """Return a LangChain chat model based on the LLM provider.
@@ -155,7 +159,7 @@ class LLMWrapper(BaseLLMWrapper):
                     name=self.model_name,
                     model=self.model_name,
                     seed=self.model_seed,
-                    api_key=self.config.openai_api_key,
+                    api_key=self.api_key,
                     max_retries=3,
                     # Unfortunately you get errors from o3 mini with Langchain unless you set
                     # temperature to 1. See https://github.com/ai-christianson/RA.Aid/issues/70
@@ -168,12 +172,12 @@ class LLMWrapper(BaseLLMWrapper):
                     timeout=120,
                     stop=None,
                     max_retries=3,
-                    api_key=self.config.must_get_api_key("anthropic_api_key"),
+                    api_key=self.api_key,
                 )
             case LLMProvider.MISTRALAI:
                 return ChatMistralAI(
                     model_name=self.model_name,
-                    api_key=self.config.mistralai_api_key,
+                    api_key=self.api_key,
                     max_retries=3,
                 )
 
