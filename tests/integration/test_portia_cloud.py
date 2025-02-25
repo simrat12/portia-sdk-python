@@ -108,7 +108,6 @@ def test_default_runner_has_correct_tools() -> None:
     assert not any(tool.id == "portia:microsoft:outlook:draft_email" for tool in tools)
 
 
-@pytest.mark.skip("Disable test until Microsoft tool is enabled in staging")
 def test_runner_with_microsoft_tools() -> None:
     """Test that the default runner has the correct tools."""
 
