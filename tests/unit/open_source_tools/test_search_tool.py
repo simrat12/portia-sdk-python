@@ -28,7 +28,7 @@ def test_search_tool_successful_response() -> None:
         "follow_up_questions": "",
         "answer": "The capital of France is Paris.",
         "images": [],
-        "results": [],
+        "results": ["result1", "result2", "result3", "result4", "result5"],
         "response_time": 2.43,
     }
 
@@ -38,7 +38,7 @@ def test_search_tool_successful_response() -> None:
             mock_post.return_value = Mock(status_code=200, json=lambda: mock_response)
 
             result = tool.run(ctx, "What is the capital of France?")
-            assert result == json.dumps(mock_response, indent=2)
+            assert result == ["result1", "result2", "result3"]
 
 
 def test_search_tool_no_answer_in_response() -> None:
