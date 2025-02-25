@@ -58,7 +58,5 @@ class SearchTool(Tool[str]):
         json_response = response.json()
         if "answer" in json_response:
             results = json_response["results"]
-            if len(results) > MAX_RESULTS:
-                return results[:MAX_RESULTS]
-            return results
+            return results[:MAX_RESULTS]
         raise ToolSoftError(f"Failed to get answer to search: {json_response}")
