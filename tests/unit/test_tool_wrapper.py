@@ -1,5 +1,6 @@
 """Tests for the ToolCallWrapper class."""
 
+from ast import mod
 import pytest
 
 from portia.agents.base_agent import Output
@@ -102,4 +103,4 @@ def test_tool_call_wrapper_run_returns_none(mock_storage: MockStorage) -> None:
     ctx = get_test_tool_context()
     wrapper.run(ctx)
     assert mock_storage.records[-1].output
-    assert isinstance(mock_storage.records[-1].output, Output)
+    assert mock_storage.records[-1].output == Output(value=None).model_dump(mode="json")
