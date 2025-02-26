@@ -152,6 +152,15 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     assert c.llm_tool_model_name == LLMModel.GPT_4_O
     assert c.summariser_llm_model_name == LLMModel.GPT_4_O
 
+    # With all API key set, correct default models are chosen
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
+    c = Config.from_default()
+    assert c.planner_llm_model_name == LLMModel.CLAUDE_3_5_SONNET
+    assert c.execution_llm_model_name == LLMModel.CLAUDE_3_5_SONNET
+    assert c.llm_tool_model_name == LLMModel.CLAUDE_3_5_SONNET
+    assert c.summariser_llm_model_name == LLMModel.CLAUDE_3_5_SONNET
+
     # Mismatch between provider and model
     with pytest.raises(InvalidConfigError):
         Config.from_default(
