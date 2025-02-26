@@ -136,8 +136,11 @@ class CLIClarificationHandler(ClarificationHandler):
         it to proceed.
         """
         logger().info(
-            f"{clarification.user_guidance} -- Please click on the link below to proceed.",
-            f"{clarification.action_url}",
+            click.style(
+                f"{clarification.user_guidance} -- Please click on the link below to proceed."
+                f"{clarification.action_url}",
+                fg=87,
+            ),
         )
         return runner.wait_for_ready(workflow)
 
@@ -149,7 +152,7 @@ class CLIClarificationHandler(ClarificationHandler):
     ) -> Workflow:
         """Handle a user input clarifications by asking the user for input from the CLI."""
         user_input = click.prompt(
-            clarification.user_guidance + "\nPlease enter a value:\n",
+            click.style(clarification.user_guidance + "\nPlease enter a value:\n", fg=87),
         )
         return runner.resolve_clarification(clarification, user_input, workflow)
 
@@ -162,7 +165,7 @@ class CLIClarificationHandler(ClarificationHandler):
         """Handle a multi-choice clarification by asking the user for input from the CLI."""
         choices = click.Choice(clarification.options)
         user_input = click.prompt(
-            clarification.user_guidance + "\nPlease choose a value:\n",
+            click.style(clarification.user_guidance + "\nPlease choose a value:\n", fg=87),
             type=choices,
         )
         return runner.resolve_clarification(clarification, user_input, workflow)
@@ -174,7 +177,7 @@ class CLIClarificationHandler(ClarificationHandler):
         clarification: ValueConfirmationClarification,
     ) -> Workflow:
         """Handle a value confirmation clarification by asking the user to confirm from the CLI."""
-        if click.confirm(text=clarification.user_guidance, default=False):
+        if click.confirm(text=click.style(clarification.user_guidance, fg=87), default=False):
             return runner.resolve_clarification(
                 clarification,
                 response=True,
@@ -191,7 +194,7 @@ class CLIClarificationHandler(ClarificationHandler):
         clarification: CustomClarification,
     ) -> Workflow:
         """Handle a custom clarification."""
-        click.echo(clarification.user_guidance)
-        click.echo(f"Additional data: {json.dumps(clarification.data)}")
-        user_input = click.prompt("\nPlease enter a value:\n")
+        click.echo(click.style(clarification.user_guidance, fg=87))
+        click.echo(click.style(f"Additional data: {json.dumps(clarification.data)}", fg=87))
+        user_input = click.prompt(click.style("\nPlease enter a value:\n", fg=87))
         return runner.resolve_clarification(clarification, user_input, workflow)
