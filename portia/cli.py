@@ -30,7 +30,7 @@ from portia.clarification import (
     MultipleChoiceClarification,
     ValueConfirmationClarification,
 )
-from portia.config import Config, StorageClass
+from portia.config import Config
 from portia.execution_context import execution_context
 from portia.logger import logger
 from portia.runner import Runner
@@ -297,10 +297,6 @@ def _get_config(
     if len(keys) > 1 and llm_provider is None and llm_model is None:
         message = "Multiple LLM keys found, but no default provided: Select a provider or model"
         raise click.UsageError(message)
-
-    if os.getenv("PORTIA_API_KEY"):
-        config.storage_class = StorageClass.CLOUD
-        config.portia_api_endpoint = os.getenv("PORTIA_API_ENDPOINT") or config.portia_api_endpoint
 
     if llm_provider or llm_model:
         config.llm_provider = llm_provider if llm_provider else llm_model.provider()
