@@ -24,7 +24,7 @@ def test_runner_config_from_file() -> None:
 "portia_api_key": "file-key",
 "openai_api_key": "file-openai-key",
 "storage_class": "MEMORY",
-"planner_llm_model_name": "GPT_4_O_MINI",
+"planning_llm_model_name": "GPT_4_O_MINI",
 "execution_llm_model_name": "GPT_4_O_MINI",
 "llm_tool_model_name": "GPT_4_O_MINI",
 "summariser_llm_model_name": "GPT_4_O_MINI",
@@ -43,7 +43,7 @@ def test_runner_config_from_file() -> None:
         assert config.must_get_raw_api_key("portia_api_key") == "file-key"
         assert config.must_get_raw_api_key("openai_api_key") == "file-openai-key"
         assert config.default_agent_type == AgentType.VERIFIER
-        assert config.planner_llm_model_name == LLMModel.GPT_4_O_MINI
+        assert config.planning_llm_model_name == LLMModel.GPT_4_O_MINI
         assert config.execution_llm_model_name == LLMModel.GPT_4_O_MINI
         assert config.llm_tool_model_name == LLMModel.GPT_4_O_MINI
         assert config.summariser_llm_model_name == LLMModel.GPT_4_O_MINI
@@ -109,26 +109,26 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Models can be set individually
     c = Config.from_default(
-        planner_llm_model_name=LLMModel.GPT_4_O,
+        planning_llm_model_name=LLMModel.GPT_4_O,
         execution_llm_model_name=LLMModel.GPT_4_O_MINI,
         llm_tool_model_name=LLMModel.CLAUDE_3_OPUS,
         summariser_llm_model_name=LLMModel.CLAUDE_3_5_HAIKU,
     )
-    assert c.planner_llm_model_name == LLMModel.GPT_4_O
+    assert c.planning_llm_model_name == LLMModel.GPT_4_O
     assert c.execution_llm_model_name == LLMModel.GPT_4_O_MINI
     assert c.llm_tool_model_name == LLMModel.CLAUDE_3_OPUS
     assert c.summariser_llm_model_name == LLMModel.CLAUDE_3_5_HAIKU
 
     # llm_model_name sets all models
     c = Config.from_default(llm_model_name="mistral_large_latest")
-    assert c.planner_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.planning_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.execution_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.llm_tool_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.summariser_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
 
     # llm_provider sets default model for all providers
     c = Config.from_default(llm_provider="mistralai")
-    assert c.planner_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.planning_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.execution_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.llm_tool_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.summariser_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
@@ -138,7 +138,7 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
     c = Config.from_default()
-    assert c.planner_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.planning_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.execution_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.llm_tool_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.summariser_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
@@ -147,7 +147,7 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
     c = Config.from_default()
-    assert c.planner_llm_model_name == LLMModel.O3_MINI
+    assert c.planning_llm_model_name == LLMModel.O3_MINI
     assert c.execution_llm_model_name == LLMModel.GPT_4_O
     assert c.llm_tool_model_name == LLMModel.GPT_4_O
     assert c.summariser_llm_model_name == LLMModel.GPT_4_O
@@ -156,7 +156,7 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
     c = Config.from_default()
-    assert c.planner_llm_model_name == LLMModel.CLAUDE_3_5_SONNET
+    assert c.planning_llm_model_name == LLMModel.CLAUDE_3_5_SONNET
     assert c.execution_llm_model_name == LLMModel.CLAUDE_3_5_SONNET
     assert c.llm_tool_model_name == LLMModel.CLAUDE_3_5_SONNET
     assert c.summariser_llm_model_name == LLMModel.CLAUDE_3_5_SONNET

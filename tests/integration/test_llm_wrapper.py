@@ -9,9 +9,9 @@ from portia.llm_wrapper import LLMWrapper
 from portia.plan import Plan
 
 MODELS = [
-    LLMModel.GPT_4_O_MINI,
+    LLMModel.GPT_4_O,
     LLMModel.MISTRAL_LARGE_LATEST,
-    LLMModel.CLAUDE_3_OPUS,
+    LLMModel.CLAUDE_3_5_SONNET,
 ]
 
 

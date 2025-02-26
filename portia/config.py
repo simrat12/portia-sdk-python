@@ -234,7 +234,7 @@ class Config(BaseModel):
         default_log_level: The default log level (e.g., DEBUG, INFO).
         default_log_sink: The default destination for logs (e.g., sys.stdout).
         json_log_serialize: Whether to serialize logs in JSON format.
-        planner_llm_model_name: The specific LLM model used for the planner agent.
+        planning_llm_model_name: The specific LLM model used for the planning agent.
         execution_llm_model_name: The specific LLM model used for the execution agent.
         llm_tool_model_name: The specific LLM model used for the LLM tool.
         summariser_llm_model_name: The specific LLM model used for summarization tasks.
@@ -314,8 +314,8 @@ class Config(BaseModel):
         default=False,
         description="Whether to serialize logs to JSON",
     )
-    planner_llm_model_name: LLMModel = Field(
-        description="Which LLM Model to use for the planner.",
+    planning_llm_model_name: LLMModel = Field(
+        description="Which LLM Model to use for the planning agent.",
     )
     execution_llm_model_name: LLMModel = Field(
         description="Which LLM Model to use for the execution agent.",
@@ -328,7 +328,7 @@ class Config(BaseModel):
     )
 
     @field_validator(
-        "planner_llm_model_name",
+        "planning_llm_model_name",
         "execution_llm_model_name",
         "llm_tool_model_name",
         "summariser_llm_model_name",
@@ -381,7 +381,7 @@ class Config(BaseModel):
         providers = {
             model.provider()
             for model in [
-                self.planner_llm_model_name,
+                self.planning_llm_model_name,
                 self.execution_llm_model_name,
                 self.llm_tool_model_name,
                 self.summariser_llm_model_name,
@@ -502,19 +502,7 @@ PLANNER_DEFAULT_MODELS = {
     LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
 }
 
-EXECUTION_DEFAULT_MODELS = {
-    LLMProvider.OPENAI: LLMModel.GPT_4_O,
-    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
-    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
-}
-
-LLM_TOOL_DEFAULT_MODELS = {
-    LLMProvider.OPENAI: LLMModel.GPT_4_O,
-    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
-    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
-}
-
-SUMMARISER_DEFAULT_MODELS = {
+DEFAULT_MODELS = {
     LLMProvider.OPENAI: LLMModel.GPT_4_O,
     LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
     LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
@@ -540,7 +528,7 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
 
     """
     # Precedence for LLM config is:
-    # 1. Specific LLM model name - e.g. planner_llm_model_name="gpt-4o"
+    # 1. Specific LLM model name - e.g. planning_llm_model_name="gpt-4o"
     # 2. General LLM model name - e.g. llm_model_name="gpt-4o"
     # 3. Default for specified provider - e.g. llm_provider="openai"
     # 4. Default for a provider based on API keys available
@@ -560,7 +548,7 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
 
     if "llm_model_name" in kwargs:
         llm_model_name = kwargs.pop("llm_model_name")
-        default_planner_llm_model_name = llm_model_name
+        default_planning_llm_model_name = llm_model_name
         default_execution_llm_model_name = llm_model_name
         default_llm_tool_model_name = llm_model_name
         default_summariser_llm_model_name = llm_model_name
@@ -571,16 +559,16 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
             kwargs.pop("llm_provider", llm_provider_default_from_api_keys()),
             LLMProvider,
         )
-        default_planner_llm_model_name = PLANNER_DEFAULT_MODELS[provider]
-        default_execution_llm_model_name = EXECUTION_DEFAULT_MODELS[provider]
-        default_llm_tool_model_name = LLM_TOOL_DEFAULT_MODELS[provider]
-        default_summariser_llm_model_name = SUMMARISER_DEFAULT_MODELS[provider]
+        default_planning_llm_model_name = PLANNER_DEFAULT_MODELS[provider]
+        default_execution_llm_model_name = DEFAULT_MODELS[provider]
+        default_llm_tool_model_name = DEFAULT_MODELS[provider]
+        default_summariser_llm_model_name = DEFAULT_MODELS[provider]
 
     return Config(
         storage_class=kwargs.pop("storage_class", StorageClass.MEMORY),
-        planner_llm_model_name=kwargs.pop(
-            "planner_llm_model_name",
-            default_planner_llm_model_name,
+        planning_llm_model_name=kwargs.pop(
+            "planning_llm_model_name",
+            default_planning_llm_model_name,
         ),
         execution_llm_model_name=kwargs.pop(
             "execution_llm_model_name",

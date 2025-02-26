@@ -25,8 +25,8 @@ class OneShotPlanner(Planner):
     def __init__(self, config: Config) -> None:
         """Init with the config."""
         self.llm_wrapper = LLMWrapper(
-            config.planner_llm_model_name,
-            config.get_llm_api_key(config.planner_llm_model_name),
+            config.planning_llm_model_name,
+            config.get_llm_api_key(config.planning_llm_model_name),
         )
 
     def generate_steps_or_error(
