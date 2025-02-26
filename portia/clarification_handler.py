@@ -121,7 +121,7 @@ class ClarificationHandler:
         """Handle a custom clarification."""
 
 
-class CLIClarificationHandler:
+class CLIClarificationHandler(ClarificationHandler):
     """Handles clarifications by obtaining user input from the CLI."""
 
     def handle_action_clarification(

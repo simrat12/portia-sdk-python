@@ -593,9 +593,43 @@ def test_runner_handle_clarification() -> None:
         tools=[ClarificationTool()],
         clarification_handler=clarification_handler,
     )
-    workflow = runner.execute_query("Raise a clarification")
-    assert workflow.state == WorkflowState.COMPLETE
+    mock_plan = StepsOrError(
+        steps=[
+            Step(
+                task="Raise a clarification",
+                tool_id="clarification_tool",
+                output="$output",
+            ),
+        ],
+        error=None,
+    )
+    LLMWrapper.to_instructor = MagicMock(return_value=mock_plan)
+    mock_step_agent = mock.MagicMock()
+    mock_step_agent.execute_sync.side_effect = [
+        Output(
+            value=InputClarification(
+                workflow_id=WorkflowUUID(),
+                user_guidance="Handle this clarification",
+                argument_name="raise_clarification",
+            ),
+        ),
+        Output(value="I caught the clarification"),
+    ]
+    mock_summarizer = mock.MagicMock()
+    mock_summarizer.create_summary.side_effect = "I caught the clarification"
+    with (
+        mock.patch(
+            "portia.runner.FinalOutputSummarizer",
+            return_value=mock_summarizer,
+        ),
+        mock.patch.object(runner, "_get_agent_for_step", return_value=mock_step_agent),
+    ):
+        workflow = runner.execute_query("Raise a clarification")
+        assert workflow.state == WorkflowState.COMPLETE
 
-    # Check that the runner handled the clarification correctly
-    assert clarification_handler.received_clarification is not None
-    assert clarification_handler.received_clarification.user_guidance == "please try again"
+        # Check that the runner handled the clarification correctly
+        assert clarification_handler.received_clarification is not None
+        assert (
+            clarification_handler.received_clarification.user_guidance
+            == "Handle this clarification"
+        )
