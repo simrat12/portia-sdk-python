@@ -24,8 +24,10 @@ def test_runner_config_from_file() -> None:
 "portia_api_key": "file-key",
 "openai_api_key": "file-openai-key",
 "storage_class": "MEMORY",
-"llm_provider": "OPENAI",
-"llm_model_name": "GPT_4_O_MINI",
+"planner_llm_model_name": "GPT_4_O_MINI",
+"execution_llm_model_name": "GPT_4_O_MINI",
+"llm_tool_model_name": "GPT_4_O_MINI",
+"summariser_llm_model_name": "GPT_4_O_MINI",
 "default_agent_type": "VERIFIER",
 "default_planner": "ONE_SHOT"
 }"""
@@ -41,7 +43,10 @@ def test_runner_config_from_file() -> None:
         assert config.must_get_raw_api_key("portia_api_key") == "file-key"
         assert config.must_get_raw_api_key("openai_api_key") == "file-openai-key"
         assert config.default_agent_type == AgentType.VERIFIER
-        assert config.planner_llm_model_name == LLMModel.O3_MINI
+        assert config.planner_llm_model_name == LLMModel.GPT_4_O_MINI
+        assert config.execution_llm_model_name == LLMModel.GPT_4_O_MINI
+        assert config.llm_tool_model_name == LLMModel.GPT_4_O_MINI
+        assert config.summariser_llm_model_name == LLMModel.GPT_4_O_MINI
 
 
 def test_from_default() -> None:
@@ -98,6 +103,8 @@ def test_set_with_strings(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test setting LLM models."""
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
     monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
 
     # Models can be set individually
@@ -127,6 +134,9 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     assert c.summariser_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
 
     # With nothing specified, it chooses a model we have API keys for
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
     c = Config.from_default()
     assert c.planner_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
     assert c.execution_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
@@ -146,7 +156,7 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(InvalidConfigError):
         Config.from_default(
             storage_class=StorageClass.MEMORY,
-            llm_provider=LLMProvider.ANTHROPIC,
+            llm_provider=LLMProvider.OPENAI,
             llm_model_name=LLMModel.CLAUDE_3_OPUS,
             default_agent_type=AgentType.VERIFIER,
             default_planner=PlannerType.ONE_SHOT,

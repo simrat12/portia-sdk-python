@@ -134,8 +134,8 @@ class LLMWrapper(BaseLLMWrapper):
         """Initialize the wrapper.
 
         Args:
-            model_name (str): The name of the LLM model to use.
-            api_key (str): The API key for authentication with the LLM provider.
+            model_name (LLMModel): The name of the LLM model to use.
+            api_key (SecretStr): The API key for authentication with the LLM provider.
             model_seed (int, optional): Seed for model's random generation. Defaults to 343.
 
         """
@@ -164,6 +164,8 @@ class LLMWrapper(BaseLLMWrapper):
                     # Unfortunately you get errors from o3 mini with Langchain unless you set
                     # temperature to 1. See https://github.com/ai-christianson/RA.Aid/issues/70
                     temperature=1 if self.model_name == LLMModel.O3_MINI else 0,
+                    # This is a workaround for o3 mini to avoid parallel tool calls.
+                    # See https://github.com/langchain-ai/langchain/issues/25357
                     disabled_params={"parallel_tool_calls": None},
                 )
             case LLMProvider.ANTHROPIC:

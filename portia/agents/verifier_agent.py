@@ -201,7 +201,7 @@ class ParserModel:
 
         """
         if not self.agent.tool:
-            raise InvalidWorkflowStateError(None)
+            raise InvalidWorkflowStateError("Parser model has no tool")
         model = self.llm.with_structured_output(ToolInputs)
         response = model.invoke(
             self.arg_parser_prompt.format_messages(
@@ -329,14 +329,16 @@ class VerifierModel:
         messages = state["messages"]
         tool_args = messages[-1].content
 
+        if not self.agent.tool:
+            raise InvalidWorkflowStateError("Verifier model has no tool")
         model = self.llm.with_structured_output(VerifiedToolInputs)
         response = model.invoke(
             self.arg_verifier_prompt.format_messages(
                 context=self.context,
                 task=self.agent.step.task,
                 arguments=tool_args,
-                tool_name=self.agent.tool.name if self.agent.tool else "",
-                tool_args=self.agent.tool.args_json_schema() if self.agent.tool else "",
+                tool_name=self.agent.tool.name,
+                tool_args=self.agent.tool.args_json_schema(),
             ),
         )
         response = VerifiedToolInputs.model_validate(response)

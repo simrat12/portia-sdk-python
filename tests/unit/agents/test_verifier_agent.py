@@ -11,7 +11,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END
 from langgraph.prebuilt import ToolNode
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field
 
 from portia.agents.base_agent import Output
 from portia.agents.verifier_agent import (
@@ -26,9 +26,7 @@ from portia.agents.verifier_agent import (
     VerifierModel,
 )
 from portia.clarification import InputClarification
-from portia.config import LLMModel
 from portia.errors import InvalidAgentError, InvalidWorkflowStateError
-from portia.llm_wrapper import LLMWrapper
 from portia.plan import Step
 from portia.tool import Tool
 from tests.utils import (
@@ -115,7 +113,7 @@ def test_parser_model(monkeypatch: pytest.MonkeyPatch) -> None:
         description="TOOL_DESCRIPTION",
     )
     parser_model = ParserModel(
-        llm=LLMWrapper(LLMModel.GPT_4_O_MINI, SecretStr("test123")).to_langchain(),
+        llm=get_test_llm_wrapper().to_langchain(),
         context="CONTEXT_STRING",
         agent=agent,  # type: ignore  # noqa: PGH003
     )
@@ -298,6 +296,7 @@ def test_verifier_model(monkeypatch: pytest.MonkeyPatch) -> None:
         name="TOOL_NAME",
         args_schema=_TestToolSchema,
         description="TOOL_DESCRIPTION",
+        args_json_schema=_TestToolSchema.model_json_schema,
     )
     verifier_model = VerifierModel(
         llm=get_test_llm_wrapper().to_langchain(),
@@ -311,9 +310,9 @@ def test_verifier_model(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "You are an expert reviewer" in messages[0].content  # type: ignore  # noqa: PGH003
     assert "CONTEXT_STRING" in messages[1].content  # type: ignore  # noqa: PGH003
     assert "DESCRIPTION_STRING" in messages[1].content  # type: ignore  # noqa: PGH003
-    assert "TOOL_NAME" not in messages[1].content  # type: ignore  # noqa: PGH003
+    assert "TOOL_NAME" in messages[1].content  # type: ignore  # noqa: PGH003
     assert "TOOL_DESCRIPTION" not in messages[1].content  # type: ignore  # noqa: PGH003
-    assert "INPUT_DESCRIPTION" not in messages[1].content  # type: ignore  # noqa: PGH003
+    assert "INPUT_DESCRIPTION" in messages[1].content  # type: ignore  # noqa: PGH003
     assert mockinvoker.output_format == VerifiedToolInputs
 
 
@@ -343,6 +342,7 @@ def test_verifier_model_schema_validation(monkeypatch: pytest.MonkeyPatch) -> No
         name="TOOL_NAME",
         args_schema=TestSchema,
         description="TOOL_DESCRIPTION",
+        args_json_schema=_TestToolSchema.model_json_schema,
     )
     verifier_model = VerifierModel(
         llm=get_test_llm_wrapper().to_langchain(),

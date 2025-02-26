@@ -77,7 +77,7 @@ def get_test_config(**kwargs) -> Config:  # noqa: ANN003
     return Config.from_default(
         **kwargs,
         default_log_level=LogLevel.INFO,
-        openai_api_key=SecretStr("test123"),
+        openai_api_key=SecretStr("123"),
     )
 
 

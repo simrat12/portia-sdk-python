@@ -24,7 +24,6 @@ from pydantic import (
 )
 
 from portia.errors import ConfigNotFoundError, InvalidConfigError
-from portia.logger import logger
 
 T = TypeVar("T")
 
@@ -337,9 +336,7 @@ class Config(BaseModel):
         default=False,
         description="Whether to serialize logs to JSON",
     )
-
     planner_llm_model_name: LLMModel = Field(
-        default=LLMModel.O3_MINI,
         description="Which LLM Model to use for the planner.",
     )
     execution_llm_model_name: LLMModel = Field(
@@ -578,9 +575,9 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
             LLMProvider,
         )
         if llm_model_name.provider() != llm_provider:
-            logger().warning(
-                "llm_model_name and llm_provider do not match. "
-                "Using llm_model_name to determine defaults.",
+            raise InvalidConfigError(
+                "llm_provider",
+                "The provider does not match the specified LLM model",
             )
 
     if "llm_model_name" in kwargs:
