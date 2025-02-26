@@ -118,7 +118,7 @@ def generate_cli_option_from_pydantic_field(  # noqa: C901
             if isinstance(info.annotation, type) and issubclass(info.annotation, Enum):
                 field_type = click.Choice(
                     [e.name for e in info.annotation],
-                    case_sensitive=True,
+                    case_sensitive=False,
                 )
                 if info.default and info.default is not PydanticUndefined:
                     field_default = info.default.name
