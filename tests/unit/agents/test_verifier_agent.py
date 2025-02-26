@@ -832,3 +832,16 @@ def test_optional_args_with_none_values() -> None:
         ),
     )
     assert updated_tool_inputs.args[0].made_up is False
+
+def test_verifier_model_edge_cases() -> None:
+    """Tests edge cases are handled."""
+    agent = SimpleNamespace()
+    agent.step = Step(task="DESCRIPTION_STRING", output="$out")
+    agent.tool = None
+    verifier_model = VerifierModel(
+        llm=get_test_llm_wrapper().to_langchain(),
+        context="CONTEXT_STRING",
+        agent=agent,  # type: ignore  # noqa: PGH003
+    )
+    with pytest.raises(InvalidWorkflowStateError):
+        verifier_model.invoke({"messages": []})

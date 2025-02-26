@@ -326,11 +326,11 @@ class VerifierModel:
             InvalidWorkflowStateError: If the agent's tool is not available.
 
         """
-        messages = state["messages"]
-        tool_args = messages[-1].content
-
         if not self.agent.tool:
             raise InvalidWorkflowStateError("Verifier model has no tool")
+
+        messages = state["messages"]
+        tool_args = messages[-1].content
         model = self.llm.with_structured_output(VerifiedToolInputs)
         response = model.invoke(
             self.arg_verifier_prompt.format_messages(

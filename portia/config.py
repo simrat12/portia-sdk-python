@@ -11,10 +11,9 @@ from __future__ import annotations
 import os
 from enum import Enum
 from pathlib import Path
-from typing import Annotated, Self, TypeVar
+from typing import Self, TypeVar
 
 from pydantic import (
-    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -180,27 +179,6 @@ class LogLevel(Enum):
     WARNING = "WARNING"
     ERROR = "ERROR"
     CRITICAL = "CRITICAL"
-
-
-def is_greater_than_zero(value: int) -> int:
-    """Ensure the value is greater than zero.
-
-    Args:
-        value (int): The value to validate.
-
-    Raises:
-        ValueError: If the value is less than or equal to zero.
-
-    Returns:
-        int: The validated value.
-
-    """
-    if value < 0:
-        raise ValueError(f"{value} must be greater than zero")
-    return value
-
-
-PositiveNumber = Annotated[int, AfterValidator(is_greater_than_zero)]
 
 
 E = TypeVar("E", bound=Enum)
