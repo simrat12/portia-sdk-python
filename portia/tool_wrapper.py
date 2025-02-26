@@ -10,6 +10,7 @@ Classes:
 
 from __future__ import annotations
 
+from ast import mod
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -124,7 +125,7 @@ class ToolCallWrapper(Tool):
                 record.status = ToolCallStatus.NEED_CLARIFICATION
                 record.output = output.model_dump(mode="json")
             elif not isinstance(output, Output):
-                record.output = Output(value=output)
+                record.output = Output(value=output).model_dump(mode="json")
                 record.status = ToolCallStatus.SUCCESS
             else:
                 record.output = output
