@@ -24,19 +24,19 @@ PROVIDER_MODELS = [
         LLMProvider.OPENAI,
         LLMModel.GPT_4_O_MINI,
     ),
-    # (
-    #    LLMProvider.MISTRALAI,
-    #    LLMModel.MISTRAL_LARGE_LATEST,
-    # ),
-    # (
-    #    LLMProvider.ANTHROPIC,
-    #    LLMModel.CLAUDE_3_OPUS_LATEST,
-    # ),
+    (
+        LLMProvider.MISTRALAI,
+        LLMModel.MISTRAL_LARGE_LATEST,
+    ),
+    (
+        LLMProvider.ANTHROPIC,
+        LLMModel.CLAUDE_3_OPUS_LATEST,
+    ),
 ]
 
 AGENTS = [
     AgentType.VERIFIER,
-    # AgentType.ONE_SHOT,
+    AgentType.ONE_SHOT,
 ]
 
 

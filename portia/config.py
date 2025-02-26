@@ -282,8 +282,7 @@ class Config(BaseModel):
 
     # Portia Cloud Options
     portia_api_endpoint: str = Field(
-        default_factory=lambda: os.getenv("PORTIA_API_ENDPOINT")
-        or "https://api.portialabs.ai",
+        default_factory=lambda: os.getenv("PORTIA_API_ENDPOINT") or "https://api.portialabs.ai",
         description="The API endpoint for the Portia Cloud API",
     )
     portia_api_key: SecretStr | None = Field(
@@ -414,16 +413,10 @@ class Config(BaseModel):
     def check_config(self) -> Self:
         """Validate Config is consistent."""
         # Portia API Key must be provided if using cloud storage
-        if self.storage_class == StorageClass.CLOUD and not self.has_api_key(
-            "portia_api_key"
-        ):
-            raise InvalidConfigError(
-                "portia_api_key", "Must be provided if using cloud storage"
-            )
+        if self.storage_class == StorageClass.CLOUD and not self.has_api_key("portia_api_key"):
+            raise InvalidConfigError("portia_api_key", "Must be provided if using cloud storage")
 
-        def validate_llm_config(
-            expected_key: str, supported_models: list[LLMModel]
-        ) -> None:
+        def validate_llm_config(expected_key: str, supported_models: list[LLMModel]) -> None:
             """Validate LLM Config."""
             if not self.has_api_key(expected_key):
                 raise InvalidConfigError(
