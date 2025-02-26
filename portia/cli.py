@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import click
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from pydantic_core import PydanticUndefined
 
 from portia.clarification import (
     ActionClarification,
@@ -117,9 +118,14 @@ def generate_cli_option_from_pydantic_field(
             if isinstance(info.annotation, type) and issubclass(info.annotation, Enum):
                 field_type = click.Choice(
                     [e.name for e in info.annotation],
-                    case_sensitive=False,
+                    case_sensitive=True,
                 )
-                field_default = info.default.name if info.default else None
+                if info.default and info.default is not PydanticUndefined:
+                    field_default = info.default.name
+                elif info.default_factory:
+                    field_default = info.default_factory().name
+                else:
+                    field_default = None
 
     field_help = info.description or f"Set the value for {option_name}"
 
