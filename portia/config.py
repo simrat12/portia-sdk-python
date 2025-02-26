@@ -111,6 +111,7 @@ class LLMModel(Enum):
     GPT_4_O = "gpt-4o"
     GPT_4_O_MINI = "gpt-4o-mini"
     GPT_3_5_TURBO = "gpt-3.5-turbo"
+    O_3_MINI = "o3-mini"
 
     # Anthropic
     CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
@@ -138,6 +139,7 @@ SUPPORTED_OPENAI_MODELS = [
     LLMModel.GPT_4_O,
     LLMModel.GPT_4_O_MINI,
     LLMModel.GPT_3_5_TURBO,
+    LLMModel.O_3_MINI,
 ]
 
 SUPPORTED_ANTHROPIC_MODELS = [
