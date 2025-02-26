@@ -1,13 +1,14 @@
 """Clarification Handler.
 
-This module defines the base ClarificationHandler class that determines how to handle clarifications
-that arise during the execution of a workflow. It can be extended to customize the handling of
-clarifications.
+This module defines the base ClarificationHandler interface that determines how to handle
+clarifications that arise during the execution of a workflow. It also provides a
+CLIClarificationHandler implementation that handles clarifications via the CLI.
 """
 
 from __future__ import annotations
 
 import json
+from abc import abstractmethod
 from typing import TYPE_CHECKING, cast
 
 import click
@@ -74,15 +75,64 @@ class ClarificationHandler:
             case ClarificationCategory.ARGUMENT:
                 raise NotImplementedError("Argument clarification not implemented")
 
+    @abstractmethod
     def handle_action_clarification(
         self,
         runner: Runner,
         workflow: Workflow,
         clarification: ActionClarification,
     ) -> Workflow:
-        """Handle a clarification that needs the user to complete an action (e.g. click a URL).
+        """Handle an action clarification."""
 
-        Handles the action by showing the user the URL on the CLI and instructing them to click on
+    @abstractmethod
+    def handle_input_clarification(
+        self,
+        runner: Runner,
+        workflow: Workflow,
+        clarification: InputClarification,
+    ) -> Workflow:
+        """Handle a user input clarification."""
+
+    @abstractmethod
+    def handle_multiple_choice_clarification(
+        self,
+        runner: Runner,
+        workflow: Workflow,
+        clarification: MultipleChoiceClarification,
+    ) -> Workflow:
+        """Handle a multi-choice clarification."""
+
+    @abstractmethod
+    def handle_value_confirmation_clarification(
+        self,
+        runner: Runner,
+        workflow: Workflow,
+        clarification: ValueConfirmationClarification,
+    ) -> Workflow:
+        """Handle a value confirmation clarification."""
+
+    @abstractmethod
+    def handle_custom_clarification(
+        self,
+        runner: Runner,
+        workflow: Workflow,
+        clarification: CustomClarification,
+    ) -> Workflow:
+        """Handle a custom clarification."""
+
+
+class CLIClarificationHandler:
+    """Handles clarifications by obtaining user input from the CLI."""
+
+    def handle_action_clarification(
+        self,
+        runner: Runner,
+        workflow: Workflow,
+        clarification: ActionClarification,
+    ) -> Workflow:
+        """Handle an action clarification.
+
+        Does this by showing the user the URL on the CLI and instructing them to click on
         it to proceed.
         """
         logger().info(

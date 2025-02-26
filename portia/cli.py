@@ -21,6 +21,7 @@ import click
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
+from portia.clarification_handler import CLIClarificationHandler
 from portia.config import Config, StorageClass
 from portia.execution_context import execution_context
 from portia.runner import Runner
@@ -164,6 +165,7 @@ def run(
         tools=(
             registry.match_tools(tool_ids=[cli_config.tool_id]) if cli_config.tool_id else registry
         ),
+        clarification_handler=CLIClarificationHandler(),
     )
 
     with execution_context(end_user_id=cli_config.end_user_id):
