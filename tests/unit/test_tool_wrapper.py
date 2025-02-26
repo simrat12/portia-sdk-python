@@ -1,6 +1,5 @@
 """Tests for the ToolCallWrapper class."""
 
-from ast import mod
 import pytest
 
 from portia.agents.base_agent import Output
