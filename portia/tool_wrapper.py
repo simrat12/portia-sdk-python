@@ -124,7 +124,7 @@ class ToolCallWrapper(Tool):
                 record.status = ToolCallStatus.NEED_CLARIFICATION
                 record.output = output.model_dump(mode="json")
             elif not isinstance(output, Output):
-                record.output = Output(value=output).model_dump(mode="json")
+                record.output = Output(value=output)
                 record.status = ToolCallStatus.SUCCESS
             else:
                 record.output = output
