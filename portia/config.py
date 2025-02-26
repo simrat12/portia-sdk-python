@@ -282,7 +282,8 @@ class Config(BaseModel):
 
     # Portia Cloud Options
     portia_api_endpoint: str = Field(
-        default_factory=lambda: os.getenv("PORTIA_API_ENDPOINT") or "https://api.portialabs.ai",
+        default_factory=lambda: os.getenv("PORTIA_API_ENDPOINT")
+        or "https://api.portialabs.ai",
         description="The API endpoint for the Portia Cloud API",
     )
     portia_api_key: SecretStr | None = Field(
@@ -413,10 +414,16 @@ class Config(BaseModel):
     def check_config(self) -> Self:
         """Validate Config is consistent."""
         # Portia API Key must be provided if using cloud storage
-        if self.storage_class == StorageClass.CLOUD and not self.has_api_key("portia_api_key"):
-            raise InvalidConfigError("portia_api_key", "Must be provided if using cloud storage")
+        if self.storage_class == StorageClass.CLOUD and not self.has_api_key(
+            "portia_api_key"
+        ):
+            raise InvalidConfigError(
+                "portia_api_key", "Must be provided if using cloud storage"
+            )
 
-        def validate_llm_config(expected_key: str, supported_models: list[LLMModel]) -> None:
+        def validate_llm_config(
+            expected_key: str, supported_models: list[LLMModel]
+        ) -> None:
             """Validate LLM Config."""
             if not self.has_api_key(expected_key):
                 raise InvalidConfigError(
@@ -530,6 +537,16 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
         Config: The default config
 
     """
-    defaults = Config().model_dump()
-    defaults.update(kwargs)
-    return Config(**defaults)
+    default_storage_class = (
+        StorageClass.CLOUD if os.getenv("PORTIA_API_KEY") else StorageClass.MEMORY
+    )
+    return Config(
+        storage_class=kwargs.pop("storage_class", default_storage_class),
+        llm_provider=kwargs.pop("llm_provider", LLMProvider.OPENAI),
+        llm_model_name=kwargs.pop("llm_model_name", LLMModel.GPT_4_O_MINI),
+        default_planner=kwargs.pop("default_planner", PlannerType.ONE_SHOT),
+        llm_model_temperature=kwargs.pop("llm_model_temperature", 0),
+        llm_model_seed=kwargs.pop("llm_model_seed", 443),
+        default_agent_type=kwargs.pop("default_agent_type", AgentType.VERIFIER),
+        **kwargs,
+    )
