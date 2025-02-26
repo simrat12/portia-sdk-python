@@ -86,7 +86,7 @@ class CLIConfig(BaseModel):
     )
 
 
-def generate_cli_option_from_pydantic_field(
+def generate_cli_option_from_pydantic_field(  # noqa: C901
     f: Callable[..., Any],
     field: str,
     info: FieldInfo,
@@ -123,7 +123,7 @@ def generate_cli_option_from_pydantic_field(
                 if info.default and info.default is not PydanticUndefined:
                     field_default = info.default.name
                 elif info.default_factory:
-                    field_default = info.default_factory().name
+                    field_default = info.default_factory().name  # type: ignore[reportCallIssue]
                 else:
                     field_default = None
 
