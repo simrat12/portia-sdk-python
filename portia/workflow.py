@@ -64,7 +64,7 @@ class WorkflowOutputs(BaseModel):
 
     clarifications: ClarificationListType = Field(
         default=[],
-        description="Clarifications raise by this workflow.",
+        description="Clarifications raised by this workflow.",
     )
 
     step_outputs: dict[str, Output] = Field(

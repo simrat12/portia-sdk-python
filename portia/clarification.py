@@ -8,6 +8,7 @@ and value confirmations.
 
 from __future__ import annotations
 
+from abc import ABC
 from typing import Any, Generic, Self, Union
 
 from pydantic import (
@@ -30,7 +31,6 @@ class ClarificationCategory(PortiaEnum):
     handling and processing.
     """
 
-    ARGUMENT = "Argument"
     ACTION = "Action"
     INPUT = "Input"
     MULTIPLE_CHOICE = "Multiple Choice"
@@ -38,7 +38,7 @@ class ClarificationCategory(PortiaEnum):
     CUSTOM = "Custom"
 
 
-class Clarification(BaseModel, Generic[SERIALIZABLE_TYPE_VAR]):
+class Clarification(BaseModel, Generic[SERIALIZABLE_TYPE_VAR], ABC):
     """Base Model for Clarifications.
 
     A Clarification represents a question or action that requires user input to resolve. For example
@@ -79,7 +79,7 @@ class Clarification(BaseModel, Generic[SERIALIZABLE_TYPE_VAR]):
     )
 
 
-class ArgumentClarification(Clarification[SERIALIZABLE_TYPE_VAR]):
+class ArgumentClarification(Clarification[SERIALIZABLE_TYPE_VAR], ABC):
     """Clarification about a specific argument for a tool.
 
     This clarification is used when a tool's argument is missing or requires further clarification.
@@ -92,10 +92,6 @@ class ArgumentClarification(Clarification[SERIALIZABLE_TYPE_VAR]):
     """
 
     argument_name: str
-    category: ClarificationCategory = Field(
-        default=ClarificationCategory.ARGUMENT,
-        description="The category of this clarification",
-    )
 
 
 class ActionClarification(Clarification[SERIALIZABLE_TYPE_VAR]):

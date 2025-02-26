@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import builtins
 import importlib.metadata
+import json
 import os
 from enum import Enum
 from functools import wraps
@@ -21,9 +22,18 @@ import click
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
-from portia.clarification_handler import CLIClarificationHandler
+from portia.clarification import (
+    ActionClarification,
+    Clarification,
+    CustomClarification,
+    InputClarification,
+    MultipleChoiceClarification,
+    ValueConfirmationClarification,
+)
+from portia.clarification_handler import ClarificationHandler
 from portia.config import Config, StorageClass
 from portia.execution_context import execution_context
+from portia.logger import logger
 from portia.runner import Runner
 from portia.tool_registry import DefaultToolRegistry
 
@@ -133,6 +143,79 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
         return f(*args, **kwargs)
 
     return wrapper
+
+
+class CLIClarificationHandler(ClarificationHandler):
+    """Handles clarifications by obtaining user input from the CLI."""
+
+    def handle_action_clarification(
+        self,
+        clarification: ActionClarification,
+        _1: Callable[[Clarification, object], None],
+        _2: Callable[[Clarification, object], None],
+    ) -> None:
+        """Handle an action clarification.
+
+        Does this by showing the user the URL on the CLI and instructing them to click on
+        it to proceed.
+        """
+        logger().info(
+            click.style(
+                f"{clarification.user_guidance} -- Please click on the link below to proceed."
+                f"{clarification.action_url}",
+                fg=87,
+            ),
+        )
+
+    def handle_input_clarification(
+        self,
+        clarification: InputClarification,
+        resolve: Callable[[Clarification, object], None],
+        _: Callable[[Clarification, object], None],
+    ) -> None:
+        """Handle a user input clarifications by asking the user for input from the CLI."""
+        user_input = click.prompt(
+            click.style(clarification.user_guidance + "\nPlease enter a value:\n", fg=87),
+        )
+        return resolve(clarification, user_input)
+
+    def handle_multiple_choice_clarification(
+        self,
+        clarification: MultipleChoiceClarification,
+        resolve: Callable[[Clarification, object], None],
+        _: Callable[[Clarification, object], None],
+    ) -> None:
+        """Handle a multi-choice clarification by asking the user for input from the CLI."""
+        choices = click.Choice(clarification.options)
+        user_input = click.prompt(
+            click.style(clarification.user_guidance + "\nPlease choose a value:\n", fg=87),
+            type=choices,
+        )
+        return resolve(clarification, user_input)
+
+    def handle_value_confirmation_clarification(
+        self,
+        clarification: ValueConfirmationClarification,
+        resolve: Callable[[Clarification, object], None],
+        error: Callable[[Clarification, object], None],
+    ) -> None:
+        """Handle a value confirmation clarification by asking the user to confirm from the CLI."""
+        if click.confirm(text=click.style(clarification.user_guidance, fg=87), default=False):
+            resolve(clarification, True)
+        else:
+            error(clarification, "Clarification was rejected by the user")
+
+    def handle_custom_clarification(
+        self,
+        clarification: CustomClarification,
+        resolve: Callable[[Clarification, object], None],
+        _: Callable[[Clarification, object], None],
+    ) -> None:
+        """Handle a custom clarification."""
+        click.echo(click.style(clarification.user_guidance, fg=87))
+        click.echo(click.style(f"Additional data: {json.dumps(clarification.data)}", fg=87))
+        user_input = click.prompt(click.style("\nPlease enter a value:\n", fg=87))
+        return resolve(clarification, user_input)
 
 
 @click.group(context_settings={"max_content_width": 240})
