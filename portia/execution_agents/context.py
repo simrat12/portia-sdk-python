@@ -1,7 +1,7 @@
-"""Context builder that generates contextual information for the workflow.
+"""Context builder that generates contextual information for the plan_run.
 
 This module defines a set of functions that build various types of context
-required for the workflow execution. It takes information about inputs,
+required for the run execution. It takes information about inputs,
 outputs, clarifications, and execution metadata to build context strings
 used by the agent to perform tasks. The context can be extended with
 additional system or user-provided data.
@@ -15,10 +15,10 @@ from typing import TYPE_CHECKING
 from portia.clarification import ArgumentClarification, ClarificationListType
 
 if TYPE_CHECKING:
-    from portia.agents.base_agent import Output
+    from portia.execution_agents.base_agent import Output
     from portia.execution_context import ExecutionContext
     from portia.plan import Step, Variable
-    from portia.workflow import Workflow
+    from portia.plan_run import PlanRun
 
 
 def generate_main_system_context(system_context_extensions: list[str] | None = None) -> list[str]:
@@ -55,7 +55,7 @@ def generate_input_context(
         list[str]: A list of strings representing the input context.
 
     """
-    input_context = ["Inputs: the original inputs provided by the planner"]
+    input_context = ["Inputs: the original inputs provided by the planning_agent"]
     used_outputs = set()
     for var in inputs:
         if var.value is not None:
@@ -178,26 +178,26 @@ def generate_context_from_execution_context(context: ExecutionContext) -> list[s
     return execution_context
 
 
-def build_context(ctx: ExecutionContext, step: Step, workflow: Workflow) -> str:
+def build_context(ctx: ExecutionContext, step: Step, plan_run: PlanRun) -> str:
     """Build the context string for the agent using inputs/outputs/clarifications/ctx.
 
     Args:
         ctx (ExecutionContext): The execution context containing agent and system metadata.
-        step (Step): The current step in the workflow, including inputs.
-        workflow (Workflow): The current workflow containing outputs and clarifications.
+        step (Step): The current step in the plan_run including inputs.
+        plan_run (PlanRun): The current run containing outputs and clarifications.
 
     Returns:
         str: A string containing all relevant context information.
 
     """
     inputs = step.inputs
-    previous_outputs = workflow.outputs.step_outputs
-    clarifications = workflow.outputs.clarifications
+    previous_outputs = plan_run.outputs.step_outputs
+    clarifications = plan_run.outputs.clarifications
 
     system_context_extension = (
         ctx.agent_system_context_extension
         if ctx.agent_system_context_extension
-        else workflow.execution_context.agent_system_context_extension
+        else plan_run.execution_context.agent_system_context_extension
     )
     system_context = generate_main_system_context(system_context_extension)
 
@@ -214,7 +214,7 @@ def build_context(ctx: ExecutionContext, step: Step, workflow: Workflow) -> str:
     # Generate and append clarifications context
     clarification_context = generate_clarification_context(
         clarifications,
-        workflow.current_step_index,
+        plan_run.current_step_index,
     )
     context.extend(clarification_context)
 

@@ -11,8 +11,8 @@ from tests.utils import (
     AdditionTool,
     ClarificationTool,
     ErrorTool,
+    get_test_plan_run,
     get_test_tool_context,
-    get_test_workflow,
 )
 
 
@@ -42,16 +42,16 @@ def mock_storage() -> MockStorage:
 
 def test_tool_call_wrapper_initialization(mock_tool: Tool, mock_storage: MockStorage) -> None:
     """Test initialization of the ToolCallWrapper."""
-    (_, workflow) = get_test_workflow()
-    wrapper = ToolCallWrapper(child_tool=mock_tool, storage=mock_storage, workflow=workflow)
+    (_, plan_run) = get_test_plan_run()
+    wrapper = ToolCallWrapper(child_tool=mock_tool, storage=mock_storage, plan_run=plan_run)
     assert wrapper.name == mock_tool.name
     assert wrapper.description == mock_tool.description
 
 
 def test_tool_call_wrapper_run_success(mock_tool: Tool, mock_storage: MockStorage) -> None:
     """Test successful run of the ToolCallWrapper."""
-    (_, workflow) = get_test_workflow()
-    wrapper = ToolCallWrapper(mock_tool, mock_storage, workflow)
+    (_, plan_run) = get_test_plan_run()
+    wrapper = ToolCallWrapper(mock_tool, mock_storage, plan_run)
     ctx = get_test_tool_context()
     result = wrapper.run(ctx, 1, 2)
     assert result == 3
@@ -63,8 +63,8 @@ def test_tool_call_wrapper_run_with_exception(
 ) -> None:
     """Test run of the ToolCallWrapper when the child tool raises an exception."""
     tool = ErrorTool()
-    (_, workflow) = get_test_workflow()
-    wrapper = ToolCallWrapper(tool, mock_storage, workflow)
+    (_, plan_run) = get_test_plan_run()
+    wrapper = ToolCallWrapper(tool, mock_storage, plan_run)
     ctx = get_test_tool_context()
     with pytest.raises(ToolHardError, match="Test error"):
         wrapper.run(ctx, "Test error", False, False)  # noqa: FBT003
@@ -75,9 +75,9 @@ def test_tool_call_wrapper_run_with_clarification(
     mock_storage: MockStorage,
 ) -> None:
     """Test run of the ToolCallWrapper when the child tool returns a Clarification."""
-    (_, workflow) = get_test_workflow()
+    (_, plan_run) = get_test_plan_run()
     tool = ClarificationTool()
-    wrapper = ToolCallWrapper(tool, mock_storage, workflow)
+    wrapper = ToolCallWrapper(tool, mock_storage, plan_run)
     ctx = get_test_tool_context()
     result = wrapper.run(ctx, "new clarification")
     assert isinstance(result, Clarification)
@@ -86,8 +86,8 @@ def test_tool_call_wrapper_run_with_clarification(
 
 def test_tool_call_wrapper_run_records_latency(mock_tool: Tool, mock_storage: MockStorage) -> None:
     """Test that the ToolCallWrapper records latency correctly."""
-    (_, workflow) = get_test_workflow()
-    wrapper = ToolCallWrapper(mock_tool, mock_storage, workflow)
+    (_, plan_run) = get_test_plan_run()
+    wrapper = ToolCallWrapper(mock_tool, mock_storage, plan_run)
     ctx = get_test_tool_context()
     wrapper.run(ctx, 1, 2)
     assert mock_storage.records[-1].latency_seconds > 0
