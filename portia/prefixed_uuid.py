@@ -102,7 +102,7 @@ class PlanUUID(PrefixedUUID):
 
 
 class PlanRunUUID(PrefixedUUID):
-    """A UUID for a plan_run."""
+    """A UUID for a PlanRun."""
 
     prefix: ClassVar[str] = PLAN_RUN_UUID_PREFIX
 

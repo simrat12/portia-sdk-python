@@ -1,13 +1,13 @@
 """Provides execution context to the planning and execution agents.
 
 This module defines the `ExecutionContext` class and utilities for managing execution
-contexts for planning_agents and agents. It provides a way to pass runtime-specific information
+contexts for planning and execution agents. It provides a way to pass runtime-specific information
 for each run execution, ensuring flexibility and context isolation, especially in
 multi-threaded or asynchronous applications.
 
 Key Features:
 - The `ExecutionContext` class encapsulates information such as user identification,
-  additional data, and system context extensions for planning_agents and agents.
+  additional data, and system context extensions for planning and execution agents.
 - The `execution_context` context manager allows for context isolation, ensuring
   that each task or thread has its own independent execution context.
 - The `get_execution_context` function allows retrieval of the current execution context.
@@ -38,7 +38,7 @@ class ExecutionContext(BaseModel):
 
     Unlike configuration settings, it is designed to be used on a per-request basis,
     allowing customization at runtime. For example, this can pass end-user-specific
-    information to planning_agents and agents for dynamic adjustments.
+    information to planning and execution agents for dynamic adjustments.
 
     Attributes:
         end_user_id (Optional[str]): The identifier of the user for whom the run is running.

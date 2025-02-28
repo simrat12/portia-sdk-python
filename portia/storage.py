@@ -111,7 +111,7 @@ class RunStorage(ABC):
 
     Methods:
         save_plan_run(self, run: Run) -> None:
-            Save a plan_run.
+            Save a PlanRun.
         get_plan_run(self, plan_run_id: PlanRunUUID) -> PlanRun:
             Get a run by ID.
         get_plan_runs(self, run_state: RunState | None = None, page=int | None = None)
@@ -122,7 +122,7 @@ class RunStorage(ABC):
 
     @abstractmethod
     def save_plan_run(self, plan_run: PlanRun) -> None:
-        """Save a plan_run.
+        """Save a PlanRun.
 
         Args:
             plan_run (PlanRun): The Run object to save.

@@ -36,7 +36,7 @@ class ToolCallRecord(BaseModel):
     """Model that records the details of an individual tool call.
 
     This class captures all relevant information about a single tool call
-    within a plan_run including metadata, input and output data, and status.
+    within a PlanRun including metadata, input and output data, and status.
 
     Attributes:
         tool_name (str): The name of the tool being called.

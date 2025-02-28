@@ -212,7 +212,7 @@ class Portia:
         plan_run: PlanRun | None = None,
         plan_run_id: PlanRunUUID | str | None = None,
     ) -> PlanRun:
-        """Run a plan_run.
+        """Run a PlanRun.
 
         Args:
             plan_run (PlanRun | None): The PlanRun to execute. Defaults to None.

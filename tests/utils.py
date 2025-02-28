@@ -82,7 +82,7 @@ def get_test_config(**kwargs) -> Config:  # noqa: ANN003
 
 
 def get_execution_ctx(plan_run: PlanRun | None = None) -> ExecutionContext:
-    """Return an execution context from a plan_run."""
+    """Return an execution context from a PlanRun."""
     if plan_run:
         return plan_run.execution_context
     return empty_context()
