@@ -1,4 +1,4 @@
-"""The DefaultExecution agent for hardest problems.
+"""The Default execution agent for hardest problems.
 
 This agent uses multiple models (verifier, parser etc) to achieve the highest accuracy
 in completing tasks.
