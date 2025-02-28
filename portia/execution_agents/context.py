@@ -195,9 +195,9 @@ def build_context(ctx: ExecutionContext, step: Step, plan_run: PlanRun) -> str:
     clarifications = plan_run.outputs.clarifications
 
     system_context_extension = (
-        ctx.agent_system_context_extension
-        if ctx.agent_system_context_extension
-        else plan_run.execution_context.agent_system_context_extension
+        ctx.execution_agent_system_context_extension
+        if ctx.execution_agent_system_context_extension
+        else plan_run.execution_context.execution_agent_system_context_extension
     )
     system_context = generate_main_system_context(system_context_extension)
 

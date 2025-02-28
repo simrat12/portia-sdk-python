@@ -98,7 +98,9 @@ def test_system_context() -> None:
     """Test that the system context is set up correctly."""
     (plan, plan_run) = get_test_plan_run()
     context = build_context(
-        ExecutionContext(agent_system_context_extension=["system context 1", "system context 2"]),
+        ExecutionContext(
+            execution_agent_system_context_extension=["system context 1", "system context 2"],
+        ),
         plan.steps[0],
         plan_run,
     )
@@ -135,7 +137,7 @@ def test_all_contexts(inputs: list[Variable], outputs: dict[str, Output]) -> Non
     plan_run.outputs.clarifications = clarifications
     context = build_context(
         ExecutionContext(
-            agent_system_context_extension=["system context 1", "system context 2"],
+            execution_agent_system_context_extension=["system context 1", "system context 2"],
             end_user_id="123",
             additional_data={"email": "hello@world.com"},
         ),
@@ -206,7 +208,9 @@ def test_context_inputs_outputs_clarifications(
     plan_run.outputs.step_outputs = outputs
     plan_run.outputs.clarifications = clarifications
     context = build_context(
-        ExecutionContext(agent_system_context_extension=["system context 1", "system context 2"]),
+        ExecutionContext(
+            execution_agent_system_context_extension=["system context 1", "system context 2"],
+        ),
         plan.steps[0],
         plan_run,
     )

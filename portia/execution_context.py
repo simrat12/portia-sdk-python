@@ -46,7 +46,7 @@ class ExecutionContext(BaseModel):
         additional_data (dict[str, str]): Arbitrary additional data useful for debugging.
         planning_agent_system_context_extension (Optional[list[str]]): Additional context for
             planning_agents.
-        agent_system_context_extension (Optional[list[str]]): Additional context for agent LLMs.
+        execution_agent_system_context_extension (Optional[list[str]]): Additional context for agent LLMs.
         plan_run_context (Optional[str]): Additional context for the PlanRun.
 
     """  # noqa: E501
@@ -59,7 +59,7 @@ class ExecutionContext(BaseModel):
 
     planning_agent_system_context_extension: list[str] | None = None
 
-    agent_system_context_extension: list[str] | None = None
+    execution_agent_system_context_extension: list[str] | None = None
 
     plan_run_context: str | None = Field(default=None, exclude=True)
 
@@ -75,7 +75,7 @@ def empty_context() -> ExecutionContext:
         end_user_id=None,
         additional_data={},
         planning_agent_system_context_extension=None,
-        agent_system_context_extension=None,
+        execution_agent_system_context_extension=None,
         plan_run_context=None,
     )
 
@@ -130,7 +130,7 @@ def execution_context(
             end_user_id=end_user_id,
             additional_data=additional_data or {},
             planning_agent_system_context_extension=planning_agent_system_context_extension,
-            agent_system_context_extension=agent_system_context_extension,
+            execution_agent_system_context_extension=agent_system_context_extension,
         )
     token = _execution_context.set(context)
     try:
