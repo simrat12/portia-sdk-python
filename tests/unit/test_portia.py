@@ -391,10 +391,10 @@ def test_get_clarifications_and_get_run_called_once(portia: Portia) -> None:
     # Mock the storage methods
     with (
         mock.patch.object(
-            runner.storage,
+            portia.storage,
             "get_plan_run",
             return_value=plan_run,
-        ) as mock_get_workflow,
+        ) as mock_get_plan_run,
         mock.patch.object(
             PlanRun,
             "get_clarifications_for_step",

@@ -52,7 +52,7 @@ def get_test_plan_run() -> tuple[Plan, PlanRun]:
 def test_portia_no_execution_context_new() -> None:
     """Test running a query using the Portia."""
     tool = ExecutionContextTrackerTool()
-    tool_registry = InMemoryToolRegistry.from_local_tools([tool
+    tool_registry = InMemoryToolRegistry.from_local_tools([tool])
     portia = Portia(tools=tool_registry, config=default_config(storage_class=StorageClass.MEMORY))
     (plan, plan_run) = get_test_plan_run()
     portia.storage.save_plan(plan)

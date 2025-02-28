@@ -2,9 +2,9 @@
 
 import pytest
 
-from portia.agents.base_agent import Output
 from portia.clarification import Clarification
 from portia.errors import ToolHardError
+from portia.execution_agents.base_agent import Output
 from portia.storage import AdditionalStorage, ToolCallRecord, ToolCallStatus
 from portia.tool import Tool
 from portia.tool_wrapper import ToolCallWrapper
@@ -97,8 +97,8 @@ def test_tool_call_wrapper_run_records_latency(mock_tool: Tool, mock_storage: Mo
 
 def test_tool_call_wrapper_run_returns_none(mock_storage: MockStorage) -> None:
     """Test that the ToolCallWrapper records latency correctly."""
-    (_, workflow) = get_test_workflow()
-    wrapper = ToolCallWrapper(NoneTool(), mock_storage, workflow)
+    (_, plan_run) = get_test_plan_run()
+    wrapper = ToolCallWrapper(NoneTool(), mock_storage, plan_run)
     ctx = get_test_tool_context()
     wrapper.run(ctx)
     assert mock_storage.records[-1].output
