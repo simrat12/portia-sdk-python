@@ -47,7 +47,7 @@ def test_portia_run_query(
     llm_model_name: LLMModel,
     agent: ExecutionAgentType,
 ) -> None:
-    """Test running a simple query using the Portia."""
+    """Test running a simple query."""
     config = Config.from_default(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
@@ -114,7 +114,7 @@ def test_portia_run_query_with_clarifications(
     llm_model_name: LLMModel,
     agent: ExecutionAgentType,
 ) -> None:
-    """Test running a query with clarification using the Portia."""
+    """Test running a query with clarification."""
     config = Config.from_default(
         default_log_level=LogLevel.DEBUG,
         llm_provider=llm_provider,
@@ -168,7 +168,7 @@ def test_portia_run_query_with_hard_error(
     llm_model_name: LLMModel,
     agent: ExecutionAgentType,
 ) -> None:
-    """Test running a query with error using the Portia."""
+    """Test running a query with error."""
     config = Config.from_default(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
@@ -224,7 +224,7 @@ def test_portia_run_query_with_soft_error(
     llm_model_name: LLMModel,
     agent: ExecutionAgentType,
 ) -> None:
-    """Test running a query with error using the Portia."""
+    """Test running a query with error."""
     config = Config.from_default(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
@@ -280,7 +280,7 @@ def test_portia_run_query_with_multiple_clarifications(
     llm_model_name: LLMModel,
     agent: ExecutionAgentType,
 ) -> None:
-    """Test running a query with multiple clarification using the Portia."""
+    """Test running a query with multiple clarification."""
     config = Config.from_default(
         default_log_level=LogLevel.DEBUG,
         llm_provider=llm_provider,

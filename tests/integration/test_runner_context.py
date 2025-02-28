@@ -50,7 +50,7 @@ def get_test_plan_run() -> tuple[Plan, PlanRun]:
 
 
 def test_portia_no_execution_context_new() -> None:
-    """Test running a query using the Portia."""
+    """Test running a query."""
     tool = ExecutionContextTrackerTool()
     tool_registry = InMemoryToolRegistry.from_local_tools([tool])
     portia = Portia(tools=tool_registry, config=default_config(storage_class=StorageClass.MEMORY))
@@ -64,7 +64,7 @@ def test_portia_no_execution_context_new() -> None:
 
 
 def test_portia_no_execution_context_existing() -> None:
-    """Test running a query using the Portia."""
+    """Test running a query."""
     tool = ExecutionContextTrackerTool()
     tool_registry = InMemoryToolRegistry.from_local_tools([tool])
     portia = Portia(tools=tool_registry, config=default_config(storage_class=StorageClass.MEMORY))
@@ -80,7 +80,7 @@ def test_portia_no_execution_context_existing() -> None:
 
 
 def test_portia_with_execution_context_new() -> None:
-    """Test running a query using the Portia."""
+    """Test running a query."""
     tool = ExecutionContextTrackerTool()
     tool_registry = InMemoryToolRegistry.from_local_tools([tool])
     portia = Portia(tools=tool_registry, config=default_config(storage_class=StorageClass.MEMORY))
@@ -97,7 +97,7 @@ def test_portia_with_execution_context_new() -> None:
 
 
 def test_portia_with_execution_context_existing() -> None:
-    """Test running a query using the Portia."""
+    """Test running a query."""
     tool = ExecutionContextTrackerTool()
     tool_registry = InMemoryToolRegistry.from_local_tools([tool])
     portia = Portia(tools=tool_registry, config=default_config(storage_class=StorageClass.MEMORY))

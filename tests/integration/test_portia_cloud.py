@@ -21,7 +21,7 @@ from tests.utils import AdditionTool, get_test_plan_run, get_test_tool_context
 
 
 def test_portia_run_query_with_cloud() -> None:
-    """Test running a simple query using the Portia."""
+    """Test running a simple query."""
     config = Config.from_default(storage_class=StorageClass.CLOUD)
     portia = Portia(config=config)
     query = "Where is the next Olympics being hosted?"
@@ -38,7 +38,7 @@ def test_portia_run_query_with_cloud() -> None:
 
 
 def test_run_tool_error() -> None:
-    """Test running a simple query using the Portia."""
+    """Test running a simple query."""
     config = Config.from_default(storage_class=StorageClass.CLOUD)
 
     registry = PortiaToolRegistry(
@@ -59,7 +59,7 @@ def test_run_tool_error() -> None:
 
 
 def test_portia_run_query_with_cloud_and_local() -> None:
-    """Test running a simple query using the Portia."""
+    """Test running a simple query."""
     config = Config.from_default(storage_class=StorageClass.CLOUD)
 
     registry = InMemoryToolRegistry.from_local_tools([AdditionTool()]) + PortiaToolRegistry(
@@ -75,7 +75,7 @@ def test_portia_run_query_with_cloud_and_local() -> None:
 
 
 def test_portia_run_query_with_oauth() -> None:
-    """Test running a simple query using the Portia."""
+    """Test running a simple query."""
     portia = Portia()
     query = "Star the portiaai/portia-sdk-repo"
 

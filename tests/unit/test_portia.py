@@ -72,7 +72,7 @@ def test_portia_local_default_config_without_api_keys() -> None:
 
 
 def test_portia_run_query(portia: Portia) -> None:
-    """Test running a query using the Portia."""
+    """Test running a query."""
     query = "example query"
 
     mock_response = StepsOrError(
@@ -87,7 +87,7 @@ def test_portia_run_query(portia: Portia) -> None:
 
 
 def test_portia_run_query_tool_list() -> None:
-    """Test running a query using the Portia."""
+    """Test running a query."""
     query = "example query"
     portia = Portia(config=get_test_config(), tools=[AdditionTool(), ClarificationTool()])
 
@@ -103,7 +103,7 @@ def test_portia_run_query_tool_list() -> None:
 
 
 def test_portia_run_query_disk_storage() -> None:
-    """Test running a query using the Portia."""
+    """Test running a query."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         query = "example query"
         config = Config.from_default(
@@ -129,7 +129,7 @@ def test_portia_run_query_disk_storage() -> None:
 
 
 def test_portia_generate_plan(portia: Portia) -> None:
-    """Test planning a query using the Portia."""
+    """Test planning a query."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
@@ -152,7 +152,7 @@ def test_portia_generate_plan_error(portia: Portia) -> None:
 
 
 def test_portia_generate_plan_with_tools(portia: Portia) -> None:
-    """Test planning a query using the Portia."""
+    """Test planning a query."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
@@ -165,7 +165,7 @@ def test_portia_generate_plan_with_tools(portia: Portia) -> None:
 
 
 def test_portia_create_and_execute_plan_run(portia: Portia) -> None:
-    """Test running a plan using the Portia."""
+    """Test running a plan."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)

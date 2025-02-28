@@ -10,7 +10,7 @@ Classes in this file include:
 - `InvalidConfigError`: Raised when a configuration value is invalid.
 - `PlanError`: A base class for exceptions in the query planning_agent module.
 - `PlanNotFoundError`: Raised when a plan is not found.
-- `RunNotFoundError`: Raised when a run is not found.
+- `PlanRunNotFoundError`: Raised when a PlanRun is not found.
 - `ToolNotFoundError`: Raised when a tool is not found.
 - `DuplicateToolError`: Raised when a tool is registered with the same name.
 - `InvalidToolDescriptionError`: Raised when a tool description is invalid.
