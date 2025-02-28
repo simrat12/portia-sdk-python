@@ -34,7 +34,7 @@ _execution_context: ContextVar[ExecutionContext | None] = ContextVar(
 
 
 class ExecutionContext(BaseModel):
-    """Execution context provides runtime information to the portia instance, planning agent, and execution agent.
+    """Execution context provides runtime information to the portia client and planning and execution agents.
 
     Unlike configuration settings, it is designed to be used on a per-request basis,
     allowing customization at runtime. For example, this can pass end-user-specific
@@ -49,7 +49,7 @@ class ExecutionContext(BaseModel):
         agent_system_context_extension (Optional[list[str]]): Additional context for agent LLMs.
         plan_run_context (Optional[str]): Additional context for the PlanRun.
 
-    """
+    """  # noqa: E501
 
     model_config = ConfigDict(extra="ignore")
 
