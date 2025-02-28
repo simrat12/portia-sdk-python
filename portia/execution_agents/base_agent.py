@@ -1,4 +1,4 @@
-"""Agents are responsible for executing steps of a plan_run.
+"""Agents are responsible for executing steps of a PlanRun.
 
 The BaseAgent class is the base class that all agents must extend.
 """

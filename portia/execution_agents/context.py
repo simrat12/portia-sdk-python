@@ -1,4 +1,4 @@
-"""Context builder that generates contextual information for the plan_run.
+"""Context builder that generates contextual information for the PlanRun.
 
 This module defines a set of functions that build various types of context
 required for the run execution. It takes information about inputs,
@@ -183,7 +183,7 @@ def build_context(ctx: ExecutionContext, step: Step, plan_run: PlanRun) -> str:
 
     Args:
         ctx (ExecutionContext): The execution context containing agent and system metadata.
-        step (Step): The current step in the plan_run including inputs.
+        step (Step): The current step in the PlanRun including inputs.
         plan_run (PlanRun): The current run containing outputs and clarifications.
 
     Returns:

@@ -47,7 +47,7 @@ class ExecutionContext(BaseModel):
         planning_agent_system_context_extension (Optional[list[str]]): Additional context for
             planning_agents.
         agent_system_context_extension (Optional[list[str]]): Additional context for agent LLMs.
-        plan_run_context (Optional[str]): Additional context for the plan_run.
+        plan_run_context (Optional[str]): Additional context for the PlanRun.
 
     """
 
@@ -88,7 +88,7 @@ def execution_context(
     planning_agent_system_context_extension: list[str] | None = None,
     agent_system_context_extension: list[str] | None = None,
 ) -> Generator[None, None, None]:
-    """Set the execution context for the duration of the plan_run.
+    """Set the execution context for the duration of the PlanRun.
 
     This context manager ensures context isolation by using `contextvars.ContextVar`,
     meaning that the execution context set within this block will only affect

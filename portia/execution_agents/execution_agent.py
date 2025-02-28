@@ -584,7 +584,7 @@ class DefaultExecutionAgent(BaseExecutionAgent):
         ]
         tool_node = ToolNode(tools)
 
-        plan_run = StateGraph(MessagesState)
+        graph = StateGraph(MessagesState)
         """
         The execution graph represented here can be generated using
         `print(app.get_graph().draw_mermaid())` on the compiled run (and running any agent
@@ -613,32 +613,32 @@ class DefaultExecutionAgent(BaseExecutionAgent):
                 classDef last fill:#bfb6fc
         """
 
-        plan_run.add_node(AgentNode.TOOL_AGENT, ToolCallingModel(llm, context, tools, self).invoke)
+        graph.add_node(AgentNode.TOOL_AGENT, ToolCallingModel(llm, context, tools, self).invoke)
         if self.verified_args:
-            plan_run.add_edge(START, AgentNode.TOOL_AGENT)
+            graph.add_edge(START, AgentNode.TOOL_AGENT)
         else:
-            plan_run.add_node(AgentNode.ARGUMENT_PARSER, ParserModel(llm, context, self).invoke)
-            plan_run.add_node(AgentNode.ARGUMENT_VERIFIER, VerifierModel(llm, context, self).invoke)
-            plan_run.add_edge(START, AgentNode.ARGUMENT_PARSER)
-            plan_run.add_edge(AgentNode.ARGUMENT_PARSER, AgentNode.ARGUMENT_VERIFIER)
-            plan_run.add_conditional_edges(
+            graph.add_node(AgentNode.ARGUMENT_PARSER, ParserModel(llm, context, self).invoke)
+            graph.add_node(AgentNode.ARGUMENT_VERIFIER, VerifierModel(llm, context, self).invoke)
+            graph.add_edge(START, AgentNode.ARGUMENT_PARSER)
+            graph.add_edge(AgentNode.ARGUMENT_PARSER, AgentNode.ARGUMENT_VERIFIER)
+            graph.add_conditional_edges(
                 AgentNode.ARGUMENT_VERIFIER,
                 self.clarifications_or_continue,
             )
 
-        plan_run.add_node(AgentNode.TOOLS, tool_node)
-        plan_run.add_node(AgentNode.SUMMARIZER, StepSummarizer(llm).invoke)
-        plan_run.add_conditional_edges(
+        graph.add_node(AgentNode.TOOLS, tool_node)
+        graph.add_node(AgentNode.SUMMARIZER, StepSummarizer(llm).invoke)
+        graph.add_conditional_edges(
             AgentNode.TOOLS,
             lambda state: next_state_after_tool_call(state, self.tool),
         )
-        plan_run.add_conditional_edges(
+        graph.add_conditional_edges(
             AgentNode.TOOL_AGENT,
             tool_call_or_end,
         )
-        plan_run.add_edge(AgentNode.SUMMARIZER, END)
+        graph.add_edge(AgentNode.SUMMARIZER, END)
 
-        app = plan_run.compile()
+        app = graph.compile()
         invocation_result = app.invoke({"messages": []})
         return process_output(
             invocation_result["messages"][-1],

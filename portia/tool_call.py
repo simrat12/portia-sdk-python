@@ -42,7 +42,7 @@ class ToolCallRecord(BaseModel):
         tool_name (str): The name of the tool being called.
         plan_run_id (RunUUID): The unique identifier of the run to which this tool call
             belongs.
-        step (int): The step number of the tool call in the plan_run.
+        step (int): The step number of the tool call in the PlanRun.
         end_user_id (str | None): The ID of the end user, if applicable. Can be None.
         additional_data (dict[str, str]): Additional data from the execution context.
         status (ToolCallStatus): The current status of the tool call (e.g., IN_PROGRESS, SUCCESS).

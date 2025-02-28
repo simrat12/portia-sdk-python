@@ -11,7 +11,7 @@ Key Components
 --------------
 - **RunState**: Tracks the current status of the run (e.g., NOT_STARTED, IN_PROGRESS).
 - **current_step_index**: Represents the step within the plan currently being executed.
-- **outputs**: Stores the intermediate and final results of the plan_run.
+- **outputs**: Stores the intermediate and final results of the PlanRun.
 - **ExecutionContext**: Provides contextual metadata useful for logging and performance analysis.
 """
 
@@ -50,13 +50,13 @@ class PlanRunState(PortiaEnum):
 
 
 class PlanRunOutputs(BaseModel):
-    """Outputs of a plan_run including clarifications.
+    """Outputs of a Plan Run including clarifications.
 
     Attributes:
         clarifications (ClarificationListType): Clarifications raised by this plan_run.
         step_outputs (dict[str, Output]): A dictionary containing outputs of individual steps.
             Outputs are indexed by the value given by the `step.output` field of the plan.
-        final_output (Output | None): The final consolidated output of the plan_run if available.
+        final_output (Output | None): The final consolidated output of the PlanRun if available.
 
     """
 
@@ -74,7 +74,7 @@ class PlanRunOutputs(BaseModel):
 
     final_output: Output | None = Field(
         default=None,
-        description="The final consolidated output of the plan_run if available.",
+        description="The final consolidated output of the PlanRun if available.",
     )
 
 
@@ -85,9 +85,9 @@ class PlanRun(BaseModel):
         id (WorfklowUUID): A unique ID for this plan_run.
         plan_id (PlanUUID): The ID of the Plan this run uses.
         current_step_index (int): The current step that is being executed.
-        state (RunState): The current state of the plan_run.
-        execution_context (ExecutionContext): Execution context for the plan_run.
-        outputs (RunOutputs): Outputs of the plan_run including clarifications.
+        state (RunState): The current state of the PlanRun.
+        execution_context (ExecutionContext): Execution context for the PlanRun.
+        outputs (RunOutputs): Outputs of the PlanRun including clarifications.
 
     """
 
@@ -106,11 +106,11 @@ class PlanRun(BaseModel):
     )
     state: PlanRunState = Field(
         default=PlanRunState.NOT_STARTED,
-        description="The current state of the plan_run.",
+        description="The current state of the PlanRun.",
     )
     execution_context: ExecutionContext = Field(
         default=empty_context(),
-        description="Execution Context for the plan_run.",
+        description="Execution Context for the PlanRun.",
     )
     outputs: PlanRunOutputs = Field(
         default=PlanRunOutputs(),
@@ -149,7 +149,7 @@ class PlanRun(BaseModel):
         ]
 
     def __str__(self) -> str:
-        """Return the string representation of the plan_run.
+        """Return the string representation of the PlanRun.
 
         Returns:
             str: A string representation containing key run attributes.
@@ -163,7 +163,7 @@ class PlanRun(BaseModel):
 
 
 class ReadOnlyPlanRun(PlanRun):
-    """A read-only copy of a plan_run passed to agents for reference.
+    """A read-only copy of a Plan Run passed to agents for reference.
 
     This class provides a non-modifiable view of a run instance,
     ensuring that agents can access run details without altering them.

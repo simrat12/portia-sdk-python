@@ -283,13 +283,13 @@ class InMemoryStorage(PlanStorage, RunStorage, LogAdditionalStorage):
         """Get run from dict.
 
         Args:
-            plan_run_id (PlanRunUUID): The UUID of the plan_run to retrieve.
+            plan_run_id (PlanRunUUID): The UUID of the PlanRun to retrieve.
 
         Returns:
             PlanRun: The PlanRun object associated with the provided plan_run_id.
 
         Raises:
-            PlanRunNotFoundError: If the plan_run is not found.
+            PlanRunNotFoundError: If the PlanRun is not found.
 
         """
         if plan_run_id in self.runs:
