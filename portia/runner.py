@@ -22,7 +22,6 @@ complex queries using various planner and agent configurations.
 from __future__ import annotations
 
 import time
-from functools import partial
 from typing import TYPE_CHECKING
 
 from portia.agents.base_agent import Output
@@ -33,7 +32,6 @@ from portia.clarification import (
     Clarification,
     ClarificationCategory,
 )
-from portia.clarification_handler import ClarificationHandler
 from portia.config import AgentType, Config, PlannerType, StorageClass
 from portia.errors import (
     InvalidWorkflowStateError,
@@ -60,8 +58,17 @@ from portia.workflow import ReadOnlyWorkflow, Workflow, WorkflowState, WorkflowU
 
 if TYPE_CHECKING:
     from portia.agents.base_agent import BaseAgent
+    from portia.clarification_handler import ClarificationHandler
     from portia.planners.planner import Planner
     from portia.tool import Tool
+
+
+class ExecutionHooks:
+    """Hooks that can be used to add modify or add extra functionality to the execution of a workflow."""  # noqa: E501
+
+    def __init__(self, clarification_handler: ClarificationHandler | None = None) -> None:
+        """Initialize ExecutionHooks with default values."""
+        self.clarification_handler = clarification_handler
 
 
 class Runner:
@@ -74,7 +81,7 @@ class Runner:
         self,
         config: Config | None = None,
         tools: ToolRegistry | list[Tool] | None = None,
-        clarification_handler: ClarificationHandler | None = None,
+        execution_hooks: ExecutionHooks | None = None,
     ) -> None:
         """Initialize storage and tools.
 
@@ -84,16 +91,13 @@ class Runner:
             tools (ToolRegistry | list[Tool]): The registry or list of tools to use. If not
                 provided, the open source tool registry will be used, alongside the default tools
                 from Portia cloud if a Portia API key is set.
-            clarification_handler (ClarificationHandler | None): The clarification handler
-                to use when clarifications are raised. If not provided, the default
-                clarification handler will be used.
+            execution_hooks (ExecutionHooks | None): Hooks that can be used to modify or add
+                extra functionality to the execution of a workflow.
 
         """
         self.config = config if config else Config.from_default()
         logger_manager.configure_from_config(self.config)
-        self.clarification_handler = (
-            clarification_handler if clarification_handler else ClarificationHandler()
-        )
+        self.execution_hooks = execution_hooks if execution_hooks else ExecutionHooks()
 
         if isinstance(tools, ToolRegistry):
             self.tool_registry = tools
@@ -222,8 +226,11 @@ class Runner:
     ) -> Workflow:
         """Run a workflow.
 
-        If any clarifications are raised during the workflow, these are handled
-        by the runner's clarification handler and the workflow continues.
+        If a clarification handler was provided as part of the execution hooks, it will be used
+        to handle any clarifications that are raised during the execution of the workflow.
+        If no clarification handler was provided and a clarification is raised, the workflow will
+        be returned in the `NEED_CLARIFICATION` state. The clarification will then need to be handled
+        by the caller before the workflow is re-executed.
 
         Args:
             workflow (Workflow | None): The workflow to execute. Defaults to None.
@@ -262,10 +269,42 @@ class Runner:
         # if the workflow has execution context associated, but none is set then use it
         if not is_execution_context_set():
             with execution_context(workflow.execution_context):
-                return self._execute_workflow(plan, workflow)
+                return self.execute_workflow_and_handle_clarifications(plan, workflow)
 
-        workflow.execution_context = get_execution_context()
-        return self._execute_workflow(plan, workflow)
+        return self.execute_workflow_and_handle_clarifications(plan, workflow)
+
+    def execute_workflow_and_handle_clarifications(
+        self,
+        plan: Plan,
+        workflow: Workflow,
+    ) -> Workflow:
+        """Execute a workflow and handle any clarifications that are raised."""
+        while workflow.state not in [
+            WorkflowState.COMPLETE,
+            WorkflowState.FAILED,
+        ]:
+            workflow.execution_context = get_execution_context()
+            workflow = self._execute_workflow(plan, workflow)
+
+            # If we don't have a clarification handler, return the workflow even if a clarification
+            # has been raised
+            if not self.execution_hooks.clarification_handler:
+                return workflow
+
+            clarifications = workflow.get_outstanding_clarifications()
+            for clarification in clarifications:
+                self.execution_hooks.clarification_handler.handle(
+                    clarification=clarification,
+                    resolve=lambda c, r: self.resolve_clarification(c, r) and None,
+                    error=lambda c, r: self.error_clarification(c, r) and None,
+                )
+
+            if len(clarifications) > 0:
+                # If clarifications are handled synchronously, we'll go through this immediately.
+                # If they're handled asynchronously, we'll wait for the workflow to be ready.
+                self.wait_for_ready(workflow)
+
+        return workflow
 
     def resolve_clarification(
         self,
@@ -308,14 +347,17 @@ class Runner:
         self,
         clarification: Clarification,
         error: object,
-        workflow: Workflow,
-    ) -> None:
+        workflow: Workflow | None = None,
+    ) -> Workflow:
         """Mark that there was an error handling the clarification."""
         logger().error(
             f"Error handling clarification with guidance '{clarification.user_guidance}': {error}",
         )
+        if workflow is None:
+            workflow = self.storage.get_workflow(clarification.workflow_id)
         workflow.state = WorkflowState.FAILED
         self.storage.save_workflow(workflow)
+        return workflow
 
     def wait_for_ready(  # noqa: C901
         self,
@@ -465,12 +507,7 @@ class Runner:
                     output=str(step_output.value),
                 )
 
-            self._raise_clarifications(workflow, step_output, plan)
-            if self.clarification_handler:
-                self.handle_clarifications()
-
-            # If we have remaining clarifications, stop execution of the workflow
-            if len(workflow.get_outstanding_clarifications()) > 0:
+            if self._raise_clarifications(workflow, step_output, plan):
                 return workflow
 
             # set final output if is last step (accounting for zero index)
@@ -540,54 +577,40 @@ class Runner:
 
         return final_output
 
-    def _raise_clarifications(self, workflow: Workflow, step_output: Output, plan: Plan) -> None:
-        """Handle any clarifications needed during workflow execution.
+    def _raise_clarifications(self, workflow: Workflow, step_output: Output, plan: Plan) -> bool:
+        """Update the workflow based on any clarifications raised.
 
         Args:
             workflow (Workflow): The workflow to execute.
             step_output (Output): The output of the last step.
             plan (Plan): The plan to execute.
 
+        Returns:
+            bool: True if clarification is needed and workflow execution should stop.
+
         """
-        if not (
-            isinstance(step_output.value, Clarification)
-            or (
-                isinstance(step_output.value, list)
-                and len(step_output.value) > 0
-                and all(isinstance(item, Clarification) for item in step_output.value)
-            )
+        if isinstance(step_output.value, Clarification) or (
+            isinstance(step_output.value, list)
+            and len(step_output.value) > 0
+            and all(isinstance(item, Clarification) for item in step_output.value)
         ):
-            return
+            new_clarifications = (
+                [step_output.value]
+                if isinstance(step_output.value, Clarification)
+                else step_output.value
+            )
+            for clarification in new_clarifications:
+                clarification.step = workflow.current_step_index
 
-        new_clarifications = (
-            [step_output.value]
-            if isinstance(step_output.value, Clarification)
-            else step_output.value
-        )
-        for clarification in new_clarifications:
-            clarification.step = workflow.current_step_index
-
-        workflow.outputs.clarifications = workflow.outputs.clarifications + new_clarifications
-        workflow.state = WorkflowState.NEED_CLARIFICATION
-        self.storage.save_workflow(workflow)
-        logger().info(
-            f"{len(new_clarifications)} Clarification(s) requested",
-            extra={"plan": plan.id, "workflow": workflow.id},
-        )
-
-    def _handle_clarifications(self, workflow: Workflow) -> None:
-        """TODO:"""
-        while workflow.state == WorkflowState.NEED_CLARIFICATION:
-            for clarification in workflow.get_outstanding_clarifications():
-                workflow = self.clarification_handler.handle(
-                    self,
-                    clarification,
-                    partial(self.resolve_clarification, workflow=workflow),
-                    partial(self.error, workflow=workflow),
-                )
-        # If clarifications are handled synchronously, we'll go through this immediately.
-        # If they're handled asynchronously, we'll wait for the workflow to be ready.
-        self.wait_for_ready(workflow)
+            workflow.outputs.clarifications = workflow.outputs.clarifications + new_clarifications
+            workflow.state = WorkflowState.NEED_CLARIFICATION
+            self.storage.save_workflow(workflow)
+            logger().info(
+                f"{len(new_clarifications)} Clarification(s) requested",
+                extra={"plan": plan.id, "workflow": workflow.id},
+            )
+            return True
+        return False
 
     def _get_tool_for_step(self, step: Step, workflow: Workflow) -> Tool | None:
         if not step.tool_id:

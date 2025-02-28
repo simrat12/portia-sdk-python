@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, override
 
 from pydantic import BaseModel, Field, SecretStr
 
-from portia.clarification import Clarification, InputClarification
+from portia.clarification import (
+    Clarification,
+    InputClarification,
+)
 from portia.clarification_handler import ClarificationHandler
 from portia.config import Config, LogLevel, StorageClass
 from portia.errors import ToolHardError, ToolSoftError
@@ -18,7 +21,6 @@ from portia.workflow import Workflow, WorkflowUUID
 
 if TYPE_CHECKING:
     from portia.execution_context import ExecutionContext
-    from portia.runner import Runner
 
 
 def get_test_tool_context(
@@ -216,14 +218,15 @@ class TestClarificationHandler(ClarificationHandler):  # noqa: D101
     received_clarification: Clarification | None = None
     clarification_response: object = "Test"
 
-    def handle_input_clarification(  # noqa: D102
+    @override
+    def handle_input_clarification(
         self,
-        runner: Runner,
-        workflow: Workflow,
         clarification: InputClarification,
-    ) -> Workflow:
+        resolve: Callable[[Clarification, object], None],
+        error: Callable[[Clarification, object], None],
+    ) -> None:
         self.received_clarification = clarification
-        return runner.resolve_clarification(clarification, self.clarification_response, workflow)
+        return resolve(clarification, self.clarification_response)
 
     def reset(self) -> None:
         """Reset the received clarification."""

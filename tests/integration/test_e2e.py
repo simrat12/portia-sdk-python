@@ -11,7 +11,7 @@ from portia.config import AgentType, Config, LLMModel, LLMProvider, LogLevel, St
 from portia.errors import ToolSoftError
 from portia.open_source_tools.registry import example_tool_registry
 from portia.plan import Plan, PlanContext, Step, Variable
-from portia.runner import Runner
+from portia.runner import ExecutionHooks, Runner
 from portia.tool_registry import InMemoryToolRegistry
 from portia.workflow import WorkflowState
 from tests.utils import AdditionTool, ClarificationTool, ErrorTool, TestClarificationHandler
@@ -128,7 +128,7 @@ def test_runner_run_query_with_clarifications(
     runner = Runner(
         config=config,
         tools=tool_registry,
-        clarification_handler=test_clarification_handler,
+        execution_hooks=ExecutionHooks(clarification_handler=test_clarification_handler),
     )
     clarification_step = Step(
         tool_id="clarification_tool",
@@ -158,6 +158,54 @@ def test_runner_run_query_with_clarifications(
     assert (
         test_clarification_handler.received_clarification.user_guidance == "Return a clarification"
     )
+
+
+def test_runner_run_query_with_clarifications_no_handler() -> None:
+    """Test running a query with clarification using the Runner."""
+    config = Config.from_default(
+        default_log_level=LogLevel.DEBUG,
+        llm_provider=LLMProvider.OPENAI,
+        llm_model_name=LLMModel.GPT_4_O_MINI,
+        default_agent_type=AgentType.VERIFIER,
+        storage_class=StorageClass.MEMORY,
+    )
+
+    tool_registry = InMemoryToolRegistry.from_local_tools([ClarificationTool()])
+    runner = Runner(config=config, tools=tool_registry)
+    clarification_step = Step(
+        tool_id="clarification_tool",
+        task="Use tool",
+        output="",
+        inputs=[
+            Variable(
+                name="user_guidance",
+                description="",
+                value="Return a clarification",
+            ),
+        ],
+    )
+    plan = Plan(
+        plan_context=PlanContext(
+            query="raise a clarification",
+            tool_ids=["clarification_tool"],
+        ),
+        steps=[clarification_step],
+    )
+    runner.storage.save_plan(plan)
+
+    workflow = runner.create_workflow(plan)
+    workflow = runner.execute_workflow(workflow)
+
+    assert workflow.state == WorkflowState.NEED_CLARIFICATION
+    assert workflow.get_outstanding_clarifications()[0].user_guidance == "Return a clarification"
+
+    workflow = runner.resolve_clarification(
+        workflow.get_outstanding_clarifications()[0],
+        "False",
+    )
+
+    runner.execute_workflow(workflow)
+    assert workflow.state == WorkflowState.COMPLETE
 
 
 @pytest.mark.parametrize(("llm_provider", "llm_model_name"), PROVIDER_MODELS)
@@ -304,7 +352,7 @@ def test_runner_run_query_with_multiple_clarifications(
     runner = Runner(
         config=config,
         tools=tool_registry,
-        clarification_handler=test_clarification_handler,
+        execution_hooks=ExecutionHooks(clarification_handler=test_clarification_handler),
     )
 
     step_one = Step(

@@ -19,7 +19,7 @@ from portia.open_source_tools.llm_tool import LLMTool
 from portia.open_source_tools.registry import example_tool_registry, open_source_tool_registry
 from portia.plan import Plan, PlanContext, ReadOnlyPlan, Step
 from portia.planners.planner import StepsOrError
-from portia.runner import Runner
+from portia.runner import ExecutionHooks, Runner
 from portia.tool import Tool, ToolRunContext
 from portia.tool_registry import InMemoryToolRegistry
 from portia.workflow import ReadOnlyWorkflow, Workflow, WorkflowOutputs, WorkflowState, WorkflowUUID
@@ -632,7 +632,7 @@ def test_runner_handle_clarification() -> None:
     runner = Runner(
         config=get_test_config(),
         tools=[ClarificationTool()],
-        clarification_handler=clarification_handler,
+        execution_hooks=ExecutionHooks(clarification_handler=clarification_handler),
     )
     mock_plan = StepsOrError(
         steps=[

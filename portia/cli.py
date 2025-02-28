@@ -23,23 +23,24 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_core import PydanticUndefined
 
-from portia.clarification import (
-    ActionClarification,
-    Clarification,
-    CustomClarification,
-    InputClarification,
-    MultipleChoiceClarification,
-    ValueConfirmationClarification,
-)
 from portia.clarification_handler import ClarificationHandler
 from portia.config import Config
 from portia.execution_context import execution_context
 from portia.logger import logger
-from portia.runner import Runner
+from portia.runner import ExecutionHooks, Runner
 from portia.tool_registry import DefaultToolRegistry
 
 if TYPE_CHECKING:
     from pydantic.fields import FieldInfo
+
+    from portia.clarification import (
+        ActionClarification,
+        Clarification,
+        CustomClarification,
+        InputClarification,
+        MultipleChoiceClarification,
+        ValueConfirmationClarification,
+    )
 
 DEFAULT_FILE_PATH = ".portia"
 PORTIA_API_KEY = "portia_api_key"
@@ -151,14 +152,22 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+class CLIExecutionHooks(ExecutionHooks):
+    """Execution hooks for the CLI."""
+
+    def __init__(self) -> None:
+        """Set up execution hooks for the CLI."""
+        super().__init__(clarification_handler=CLIClarificationHandler())
+
+
 class CLIClarificationHandler(ClarificationHandler):
     """Handles clarifications by obtaining user input from the CLI."""
 
     def handle_action_clarification(
         self,
         clarification: ActionClarification,
-        _1: Callable[[Clarification, object], None],
-        _2: Callable[[Clarification, object], None],
+        resolve: Callable[[Clarification, object], None],  # noqa: ARG002
+        error: Callable[[Clarification, object], None],  # noqa: ARG002
     ) -> None:
         """Handle an action clarification.
 
@@ -177,7 +186,7 @@ class CLIClarificationHandler(ClarificationHandler):
         self,
         clarification: InputClarification,
         resolve: Callable[[Clarification, object], None],
-        _: Callable[[Clarification, object], None],
+        error: Callable[[Clarification, object], None],  # noqa: ARG002
     ) -> None:
         """Handle a user input clarifications by asking the user for input from the CLI."""
         user_input = click.prompt(
@@ -189,7 +198,7 @@ class CLIClarificationHandler(ClarificationHandler):
         self,
         clarification: MultipleChoiceClarification,
         resolve: Callable[[Clarification, object], None],
-        _: Callable[[Clarification, object], None],
+        error: Callable[[Clarification, object], None],  # noqa: ARG002
     ) -> None:
         """Handle a multi-choice clarification by asking the user for input from the CLI."""
         choices = click.Choice(clarification.options)
@@ -207,7 +216,7 @@ class CLIClarificationHandler(ClarificationHandler):
     ) -> None:
         """Handle a value confirmation clarification by asking the user to confirm from the CLI."""
         if click.confirm(text=click.style(clarification.user_guidance, fg=87), default=False):
-            resolve(clarification, True)
+            resolve(clarification, True)  # noqa: FBT003
         else:
             error(clarification, "Clarification was rejected by the user")
 
@@ -215,7 +224,7 @@ class CLIClarificationHandler(ClarificationHandler):
         self,
         clarification: CustomClarification,
         resolve: Callable[[Clarification, object], None],
-        _: Callable[[Clarification, object], None],
+        error: Callable[[Clarification, object], None],  # noqa: ARG002
     ) -> None:
         """Handle a custom clarification."""
         click.echo(click.style(clarification.user_guidance, fg=87))
@@ -254,7 +263,7 @@ def run(
         tools=(
             registry.match_tools(tool_ids=[cli_config.tool_id]) if cli_config.tool_id else registry
         ),
-        clarification_handler=CLIClarificationHandler(),
+        execution_hooks=CLIExecutionHooks(),
     )
 
     with execution_context(end_user_id=cli_config.end_user_id):

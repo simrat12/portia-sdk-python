@@ -7,13 +7,12 @@ CLIClarificationHandler implementation that handles clarifications via the CLI.
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC
 from typing import Callable
 
 from portia.clarification import (
     ActionClarification,
     Clarification,
-    ClarificationCategory,
     CustomClarification,
     InputClarification,
     MultipleChoiceClarification,
@@ -21,7 +20,7 @@ from portia.clarification import (
 )
 
 
-class ClarificationHandler:
+class ClarificationHandler(ABC):  # noqa: B024
     """Handles clarifications that arise during the execution of a plan run."""
 
     def handle(
@@ -41,39 +40,42 @@ class ClarificationHandler:
                 from this function.
 
         """
-        match type(clarification):
-            case ClarificationCategory.ACTION:
+        match clarification:
+            case ActionClarification():
                 return self.handle_action_clarification(
                     clarification,
                     resolve,
                     error,
                 )
-            case ClarificationCategory.INPUT:
+            case InputClarification():
                 return self.handle_input_clarification(
                     clarification,
                     resolve,
                     error,
                 )
-            case ClarificationCategory.MULTIPLE_CHOICE:
+            case MultipleChoiceClarification():
                 return self.handle_multiple_choice_clarification(
                     clarification,
                     resolve,
                     error,
                 )
-            case ClarificationCategory.VALUE_CONFIRMATION:
+            case ValueConfirmationClarification():
                 return self.handle_value_confirmation_clarification(
                     clarification,
                     resolve,
                     error,
                 )
-            case ClarificationCategory.CUSTOM:
+            case CustomClarification():
                 return self.handle_custom_clarification(
                     clarification,
                     resolve,
                     error,
                 )
+            case _:
+                raise ValueError(
+                    f"Attempted to handle an unknown clarification type: {type(clarification)}",
+                )
 
-    @abstractmethod
     def handle_action_clarification(
         self,
         clarification: ActionClarification,
@@ -81,8 +83,8 @@ class ClarificationHandler:
         error: Callable[[Clarification, object], None],
     ) -> None:
         """Handle an action clarification."""
+        raise NotImplementedError("handle_action_clarification is not implemented")
 
-    @abstractmethod
     def handle_input_clarification(
         self,
         clarification: InputClarification,
@@ -90,8 +92,8 @@ class ClarificationHandler:
         error: Callable[[Clarification, object], None],
     ) -> None:
         """Handle a user input clarification."""
+        raise NotImplementedError("handle_input_clarification is not implemented")
 
-    @abstractmethod
     def handle_multiple_choice_clarification(
         self,
         clarification: MultipleChoiceClarification,
@@ -99,8 +101,8 @@ class ClarificationHandler:
         error: Callable[[Clarification, object], None],
     ) -> None:
         """Handle a multi-choice clarification."""
+        raise NotImplementedError("handle_multiple_choice_clarification is not implemented")
 
-    @abstractmethod
     def handle_value_confirmation_clarification(
         self,
         clarification: ValueConfirmationClarification,
@@ -108,8 +110,8 @@ class ClarificationHandler:
         error: Callable[[Clarification, object], None],
     ) -> None:
         """Handle a value confirmation clarification."""
+        raise NotImplementedError("handle_value_confirmation_clarification is not implemented")
 
-    @abstractmethod
     def handle_custom_clarification(
         self,
         clarification: CustomClarification,
@@ -117,3 +119,4 @@ class ClarificationHandler:
         error: Callable[[Clarification, object], None],
     ) -> None:
         """Handle a custom clarification."""
+        raise NotImplementedError("handle_custom_clarification is not implemented")

@@ -1,5 +1,6 @@
 """Simple Example."""
 
+from portia.cli import CLIExecutionHooks
 from portia.config import Config, LogLevel
 from portia.execution_context import execution_context
 from portia.open_source_tools.registry import example_tool_registry
@@ -8,6 +9,7 @@ from portia.runner import Runner
 runner = Runner(
     Config.from_default(default_log_level=LogLevel.DEBUG),
     tools=example_tool_registry,
+    execution_hooks=CLIExecutionHooks(),
 )
 
 
