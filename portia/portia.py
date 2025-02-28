@@ -394,14 +394,14 @@ class Portia:
         self.storage.save_plan_run(plan_run)
         logger().debug(
             f"Executing run from step {plan_run.current_step_index}",
-            extra={"plan": plan.id, "run": plan_run.id},
+            extra={"plan": plan.id, "plan_run": plan_run.id},
         )
         for index in range(plan_run.current_step_index, len(plan.steps)):
             step = plan.steps[index]
             plan_run.current_step_index = index
             logger().debug(
                 f"Executing step {index}: {step.task}",
-                extra={"plan": plan.id, "run": plan_run.id},
+                extra={"plan": plan.id, "plan_run": plan_run.id},
             )
             # we pass read only copies of the state to the agent so that the portia remains
             # responsible for handling the output of the agent and updating the state.
@@ -411,7 +411,7 @@ class Portia:
             )
             logger().debug(
                 f"Using agent: {type(agent)}",
-                extra={"plan": plan.id, "run": plan_run.id},
+                extra={"plan": plan.id, "plan_run": plan_run.id},
             )
             try:
                 step_output = agent.execute_sync()
@@ -424,18 +424,18 @@ class Portia:
                 logger().error(
                     "error: {error}",
                     error=e,
-                    extra={"plan": plan.id, "run": plan_run.id},
+                    extra={"plan": plan.id, "plan_run": plan_run.id},
                 )
                 logger().debug(
                     f"Final run status: {plan_run.state}",
-                    extra={"plan": plan.id, "run": plan_run.id},
+                    extra={"plan": plan.id, "plan_run": plan_run.id},
                 )
                 return plan_run
             else:
                 plan_run.outputs.step_outputs[step.output] = step_output
                 logger().debug(
                     "Step output - {output}",
-                    extra={"plan": plan.id, "run": plan_run.id},
+                    extra={"plan": plan.id, "plan_run": plan_run.id},
                     output=str(step_output.value),
                 )
 
@@ -449,8 +449,8 @@ class Portia:
             # persist at the end of each step
             self.storage.save_plan_run(plan_run)
             logger().debug(
-                "New Run State: {run}",
-                extra={"plan": plan.id, "run": plan_run.id},
+                "New PlanRun State: {plan_run}",
+                extra={"plan": plan.id, "plan_run": plan_run.id},
                 plan_run=plan_run.model_dump_json(indent=4),
             )
 
@@ -458,12 +458,12 @@ class Portia:
         self.storage.save_plan_run(plan_run)
         logger().debug(
             f"Final run status: {plan_run.state}",
-            extra={"plan": plan.id, "run": plan_run.id},
+            extra={"plan": plan.id, "plan_run": plan_run.id},
         )
         if plan_run.outputs.final_output:
             logger().info(
                 "{output}",
-                extra={"plan": plan.id, "run": plan_run.id},
+                extra={"plan": plan.id, "plan_run": plan_run.id},
                 output=str(plan_run.outputs.final_output.value),
             )
         return plan_run
@@ -539,7 +539,7 @@ class Portia:
             self.storage.save_plan_run(plan_run)
             logger().info(
                 f"{len(new_clarifications)} Clarification(s) requested",
-                extra={"plan": plan.id, "run": plan_run.id},
+                extra={"plan": plan.id, "plan_run": plan_run.id},
             )
             return True
         return False
