@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from portia.clarification import Clarification, InputClarification
-from portia.config import AgentType, Config, LLMModel, LLMProvider, LogLevel
+from portia.config import AgentType, Config, LLMModel, LLMProvider, LogLevel, StorageClass
 from portia.errors import ToolSoftError
 from portia.open_source_tools.registry import example_tool_registry
 from portia.plan import Plan, PlanContext, Step, Variable
@@ -52,6 +52,7 @@ def test_runner_run_query(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
         default_agent_type=agent,
+        storage_class=StorageClass.MEMORY,
     )
 
     addition_tool = AdditionTool()
@@ -83,6 +84,7 @@ def test_runner_generate_plan(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
         default_agent_type=agent,
+        storage_class=StorageClass.MEMORY,
     )
 
     tool_registry = InMemoryToolRegistry.from_local_tools([AdditionTool()])
@@ -118,6 +120,7 @@ def test_runner_run_query_with_clarifications(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
         default_agent_type=agent,
+        storage_class=StorageClass.MEMORY,
     )
 
     test_clarification_handler = TestClarificationHandler()
@@ -169,6 +172,7 @@ def test_runner_run_query_with_hard_error(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
         default_agent_type=agent,
+        storage_class=StorageClass.MEMORY,
     )
     tool_registry = InMemoryToolRegistry.from_local_tools([ErrorTool()])
     runner = Runner(config=config, tools=tool_registry)
@@ -224,6 +228,7 @@ def test_runner_run_query_with_soft_error(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
         default_agent_type=agent,
+        storage_class=StorageClass.MEMORY,
     )
 
     class MyAdditionTool(AdditionTool):
@@ -280,6 +285,7 @@ def test_runner_run_query_with_multiple_clarifications(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
         default_agent_type=agent,
+        storage_class=StorageClass.MEMORY,
     )
 
     class MyAdditionTool(AdditionTool):
