@@ -178,7 +178,7 @@ def test_portia_cloud_storage() -> None:
             storage.save_plan_run(plan_run)
 
         mock_put.assert_called_once_with(
-            url=f"{config.portia_api_endpoint}/api/v0/plan_runs/{plan_run.id}/",
+            url=f"{config.portia_api_endpoint}/api/v0/plan-runs/{plan_run.id}/",
             json={
                 "current_step_index": plan_run.current_step_index,
                 "state": plan_run.state,
@@ -202,7 +202,7 @@ def test_portia_cloud_storage() -> None:
             storage.get_plan_run(plan_run.id)
 
         mock_get.assert_called_once_with(
-            url=f"{config.portia_api_endpoint}/api/v0/plan_runs/{plan_run.id}/",
+            url=f"{config.portia_api_endpoint}/api/v0/plan-runs/{plan_run.id}/",
             headers={
                 "Authorization": "Api-Key test_api_key",
                 "Content-Type": "application/json",
@@ -219,7 +219,7 @@ def test_portia_cloud_storage() -> None:
             storage.get_plan_runs(PlanRunState.READY_TO_RESUME)
 
         mock_get.assert_called_once_with(
-            url=f"{config.portia_api_endpoint}/api/v0/plan_runs/?run_state=READY_TO_RESUME",
+            url=f"{config.portia_api_endpoint}/api/v0/plan-runs/?run_state=READY_TO_RESUME",
             headers={
                 "Authorization": "Api-Key test_api_key",
                 "Content-Type": "application/json",
@@ -236,7 +236,7 @@ def test_portia_cloud_storage() -> None:
             storage.get_plan_runs()
 
         mock_get.assert_called_once_with(
-            url=f"{config.portia_api_endpoint}/api/v0/plan_runs/?",
+            url=f"{config.portia_api_endpoint}/api/v0/plan-runs/?",
             headers={
                 "Authorization": "Api-Key test_api_key",
                 "Content-Type": "application/json",
@@ -338,7 +338,7 @@ def test_portia_cloud_storage_errors() -> None:
             storage.save_plan_run(plan_run)
 
         mock_put.assert_called_once_with(
-            url=f"{config.portia_api_endpoint}/api/v0/plan_runs/{plan_run.id}/",
+            url=f"{config.portia_api_endpoint}/api/v0/plan-runs/{plan_run.id}/",
             json={
                 "current_step_index": plan_run.current_step_index,
                 "state": plan_run.state,
@@ -362,7 +362,7 @@ def test_portia_cloud_storage_errors() -> None:
             storage.get_plan_run(plan_run.id)
 
         mock_get.assert_called_once_with(
-            url=f"{config.portia_api_endpoint}/api/v0/plan_runs/{plan_run.id}/",
+            url=f"{config.portia_api_endpoint}/api/v0/plan-runs/{plan_run.id}/",
             headers={
                 "Authorization": "Api-Key test_api_key",
                 "Content-Type": "application/json",
@@ -379,7 +379,7 @@ def test_portia_cloud_storage_errors() -> None:
             storage.get_plan_runs()
 
         mock_get.assert_called_once_with(
-            url=f"{config.portia_api_endpoint}/api/v0/plan_runs/?",
+            url=f"{config.portia_api_endpoint}/api/v0/plan-runs/?",
             headers={
                 "Authorization": "Api-Key test_api_key",
                 "Content-Type": "application/json",
@@ -396,7 +396,7 @@ def test_portia_cloud_storage_errors() -> None:
             storage.get_plan_runs(run_state=PlanRunState.COMPLETE, page=10)
 
         mock_get.assert_called_once_with(
-            url=f"{config.portia_api_endpoint}/api/v0/plan_runs/?page=10&run_state=COMPLETE",
+            url=f"{config.portia_api_endpoint}/api/v0/plan-runs/?page=10&run_state=COMPLETE",
             headers={
                 "Authorization": "Api-Key test_api_key",
                 "Content-Type": "application/json",
