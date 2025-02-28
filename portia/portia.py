@@ -15,7 +15,7 @@ The `Portia` class provides methods to:
 - Wait for runs to reach a state where they can be resumed.
 
 Modules in this file work with different storage backends (memory, disk, cloud) and can handle
-complex queries using various planning_agent and agent configurations.
+complex queries using various planning and execution agent configurations.
 
 """
 
