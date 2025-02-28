@@ -47,7 +47,7 @@ class BaseExecutionAgent:
     ) -> None:
         """Initialize the base agent with the given args.
 
-        Importantly, the models here are frozen copies of those used in the Portia.
+        Importantly, the models here are frozen copies of those used by the Portia instance.
         They are meant as read-only references, useful for execution of the task
         but cannot be edited. The agent should return output via the response
         of the execute_sync method.
