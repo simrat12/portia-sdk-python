@@ -51,7 +51,7 @@ We have a repo that showcases some of our core concepts to get you started. It's
 This example is meant to get you familiar with a few of our core abstractions:
 - A `Plan` is the set of steps an LLM thinks it should take in order to respond to a user prompt. They are immutable, structured and human-readable.
 - A `PlanRun` is a unique instantiation of a `Plan`. The purpose of a `PlanRun` is to capture the state of a unique plan run at every step in an auditable way.
-- A `Portia` is the main orchestrator of plan generation. It is also capable of run creation, execution, pausing and resumption.
+- `Portia` orchestrates plan generation and execution, including the creation, pausing and resumption of plan runs.
 
 Before running the code below, make sure you have the following keys set as environment variables in your .env file:
 - An OpenAI API key (or other LLM API key) set as `OPENAI_API_KEY=`
