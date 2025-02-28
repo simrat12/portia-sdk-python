@@ -1,4 +1,4 @@
-"""Provides execution context to the planning_agent and agents.
+"""Provides execution context to the planning and execution agents.
 
 This module defines the `ExecutionContext` class and utilities for managing execution
 contexts for planning_agents and agents. It provides a way to pass runtime-specific information
