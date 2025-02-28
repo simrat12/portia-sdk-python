@@ -51,7 +51,7 @@ def test_portia_run_query(
     config = Config.from_default(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
-        default_agent_type=agent,
+        execution_agent_type=agent,
         storage_class=StorageClass.MEMORY,
     )
 
@@ -83,7 +83,7 @@ def test_portia_generate_plan(
     config = Config.from_default(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
-        default_agent_type=agent,
+        execution_agent_type=agent,
         storage_class=StorageClass.MEMORY,
     )
 
@@ -119,7 +119,7 @@ def test_portia_run_query_with_clarifications(
         default_log_level=LogLevel.DEBUG,
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
-        default_agent_type=agent,
+        execution_agent_type=agent,
         storage_class=StorageClass.MEMORY,
     )
 
@@ -172,7 +172,7 @@ def test_portia_run_query_with_hard_error(
     config = Config.from_default(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
-        default_agent_type=agent,
+        execution_agent_type=agent,
         storage_class=StorageClass.MEMORY,
     )
     tool_registry = InMemoryToolRegistry.from_local_tools([ErrorTool()])
@@ -228,7 +228,7 @@ def test_portia_run_query_with_soft_error(
     config = Config.from_default(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
-        default_agent_type=agent,
+        execution_agent_type=agent,
         storage_class=StorageClass.MEMORY,
     )
 
@@ -285,7 +285,7 @@ def test_portia_run_query_with_multiple_clarifications(
         default_log_level=LogLevel.DEBUG,
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
-        default_agent_type=agent,
+        execution_agent_type=agent,
         storage_class=StorageClass.MEMORY,
     )
 

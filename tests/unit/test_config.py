@@ -97,7 +97,7 @@ def test_set_with_strings(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(InvalidConfigError):
         c = Config.from_default(llm_provider="personal", llm_model_name="other-model")
 
-    # default_agent_type
+    # execution_agent_type
     c = Config.from_default(execution_agent_type="default")
     assert c.execution_agent_type == ExecutionAgentType.DEFAULT
     with pytest.raises(InvalidConfigError):

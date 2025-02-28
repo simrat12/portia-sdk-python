@@ -274,8 +274,8 @@ class Config(BaseModel):
         llm_model_name: The model to use for LLM tasks.
         llm_model_temperature: The temperature for LLM generation.
         llm_model_seed: The seed for LLM generation.
-        default_agent_type: The default agent type.
-        default_planning_agent: The default planning_agent type.
+        planning_agent_type: The planning agent type.
+        execution_agent_type: The execution agent type.
 
     """
 
