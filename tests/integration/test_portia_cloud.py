@@ -3,7 +3,6 @@
 import uuid
 
 import pytest
-from dotenv import load_dotenv
 from pydantic import SecretStr
 
 from portia.clarification import ActionClarification
@@ -20,7 +19,6 @@ from portia.tool_registry import (
 )
 from tests.utils import AdditionTool, get_test_plan_run, get_test_tool_context
 
-load_dotenv(override=True)
 
 def test_portia_run_query_with_cloud() -> None:
     """Test running a simple query."""
