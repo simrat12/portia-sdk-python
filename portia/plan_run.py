@@ -53,7 +53,7 @@ class PlanRunOutputs(BaseModel):
     """Outputs of a Plan Run including clarifications.
 
     Attributes:
-        clarifications (ClarificationListType): Clarifications raised by this plan_run.
+        clarifications (ClarificationListType): Clarifications raised by this plan run.
         step_outputs (dict[str, Output]): A dictionary containing outputs of individual steps.
             Outputs are indexed by the value given by the `step.output` field of the plan.
         final_output (Output | None): The final consolidated output of the PlanRun if available.

@@ -472,7 +472,7 @@ class Portia:
         """Get the planning_agent based on the configuration.
 
         Returns:
-            BasePlanningAgent: The planning_agent to be used for generating plans.
+            BasePlanningAgent: The planning agent to be used for generating plans.
 
         """
         cls: type[BasePlanningAgent]

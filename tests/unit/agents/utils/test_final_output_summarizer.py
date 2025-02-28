@@ -60,7 +60,7 @@ def test_summarizer_agent_execute_sync() -> None:
 
 
 def test_summarizer_agent_empty_plan_run() -> None:
-    """Test summarizer agent with empty plan_run."""
+    """Test summarizer agent with empty plan run."""
     (plan, plan_run) = get_test_plan_run()
     plan.plan_context.query = "Empty query"
     plan.steps = []

@@ -132,11 +132,11 @@ class PlanContext(BaseModel):
     """Context for a plan.
 
     The plan context contains information about the original query and the tools available
-    for the planning_agent to use when generating the plan.
+    for the planning agent to use when generating the plan.
 
     Args:
         query (str): The original query given by the user.
-        tool_ids (list[str]): A list of tool IDs available to the planning_agent.
+        tool_ids (list[str]): A list of tool IDs available to the planning agent.
 
     """
 
@@ -144,7 +144,7 @@ class PlanContext(BaseModel):
 
     query: str = Field(description="The original query given by the user.")
     tool_ids: list[str] = Field(
-        description="The list of tools IDs available to the planning_agent.",
+        description="The list of tools IDs available to the planning agent.",
     )
 
 
