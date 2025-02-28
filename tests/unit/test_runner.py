@@ -8,7 +8,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
-from pydantic import HttpUrl
+from pydantic import HttpUrl, SecretStr
 
 from portia.clarification import ActionClarification, InputClarification
 from portia.config import Config, StorageClass
@@ -106,8 +106,9 @@ def test_portia_run_query_disk_storage() -> None:
     """Test running a query using the Portia."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         query = "example query"
-        config = get_test_config(
+        config = Config.from_default(
             storage_class=StorageClass.DISK,
+            openai_api_key=SecretStr("123"),
             storage_dir=tmp_dir,
         )
         tool_registry = InMemoryToolRegistry.from_local_tools([AdditionTool(), ClarificationTool()])
@@ -388,9 +389,18 @@ def test_get_clarifications_and_get_run_called_once(portia: Portia) -> None:
     plan_run.current_step_index = 0  # Set to a valid index
 
     # Mock the storage methods
-    with mock.patch.object(portia.storage, "get_plan_run", return_value=plan_run) as mock_get_plan_run, \
-         mock.patch.object(PlanRun, "get_clarifications_for_step", return_value=[]) as mock_get_clarifications:  # noqa: E501
-
+    with (
+        mock.patch.object(
+            runner.storage,
+            "get_plan_run",
+            return_value=plan_run,
+        ) as mock_get_workflow,
+        mock.patch.object(
+            PlanRun,
+            "get_clarifications_for_step",
+            return_value=[],
+        ) as mock_get_clarifications,
+    ):
         # Call wait_for_ready
         portia.wait_for_ready(plan_run)
 
