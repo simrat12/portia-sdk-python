@@ -20,7 +20,7 @@ This module ensures flexible and configurable logging, supporting both default a
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 from loguru import logger as default_logger
 
@@ -50,12 +50,25 @@ class LoggerInterface(Protocol):
     def critical(self, msg: str, *args, **kwargs) -> None: ...  # noqa: ANN002, ANN003, D102
 
 
-DEFAULT_LOG_FORMAT = (
-    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-    "<level>{level}</level> | "
-    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level> | "
-    "{extra}"
-)
+def log_formatter(record: Any) -> str:  # noqa: ANN401
+    """Format log record for Loguru.
+
+    Args:
+        record: Log record containing log attributes.
+
+    Returns:
+        str: Formatted log string.
+
+    """
+    escaped_message = record["message"].replace("{", "{{").replace("}", "}}")
+
+    return (
+        "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+        "<level>{level}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+        "<level>" + escaped_message + "</level> | "
+        "{extra}"
+    )
 
 
 class LoggerManager:
@@ -91,7 +104,7 @@ class LoggerManager:
         default_logger.add(
             sys.stdout,
             level="INFO",
-            format=DEFAULT_LOG_FORMAT,
+            format=log_formatter,
             serialize=False,
         )
         self._logger: LoggerInterface = custom_logger or default_logger  # type: ignore  # noqa: PGH003
@@ -142,7 +155,7 @@ class LoggerManager:
             default_logger.add(
                 log_sink,
                 level=config.default_log_level.value,
-                format=DEFAULT_LOG_FORMAT,
+                format=log_formatter,
                 serialize=config.json_log_serialize,
             )
 
