@@ -64,7 +64,11 @@ if TYPE_CHECKING:
 
 
 class ExecutionHooks:
-    """Hooks that can be used to add modify or add extra functionality to the execution of a workflow."""  # noqa: E501
+    """Hooks that can be used to add modify or add extra functionality to the execution of a workflow.
+
+    Currently, the only hook is a clarification handler which can be used to handle clarifications
+    that arise during the execution of a workflow.
+    """  # noqa: E501
 
     def __init__(self, clarification_handler: ClarificationHandler | None = None) -> None:
         """Initialize ExecutionHooks with default values."""
@@ -295,8 +299,8 @@ class Runner:
             for clarification in clarifications:
                 self.execution_hooks.clarification_handler.handle(
                     clarification=clarification,
-                    resolve=lambda c, r: self.resolve_clarification(c, r) and None,
-                    error=lambda c, r: self.error_clarification(c, r) and None,
+                    on_resolution=lambda c, r: self.resolve_clarification(c, r) and None,
+                    on_error=lambda c, r: self.error_clarification(c, r) and None,
                 )
 
             if len(clarifications) > 0:

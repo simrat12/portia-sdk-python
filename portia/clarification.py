@@ -79,21 +79,6 @@ class Clarification(BaseModel, Generic[SERIALIZABLE_TYPE_VAR], ABC):
     )
 
 
-class ArgumentClarification(Clarification[SERIALIZABLE_TYPE_VAR], ABC):
-    """Clarification about a specific argument for a tool.
-
-    This clarification is used when a tool's argument is missing or requires further clarification.
-    The name of the argument is provided within the clarification.
-
-    Attributes:
-        argument_name (str): The name of the argument that is being clarified.
-        category (ClarificationCategory): The category for this clarification, 'Argument'.
-
-    """
-
-    argument_name: str
-
-
 class ActionClarification(Clarification[SERIALIZABLE_TYPE_VAR]):
     """Action-based clarification.
 
@@ -126,7 +111,7 @@ class ActionClarification(Clarification[SERIALIZABLE_TYPE_VAR]):
         return str(action_url)
 
 
-class InputClarification(ArgumentClarification[SERIALIZABLE_TYPE_VAR]):
+class InputClarification(Clarification[SERIALIZABLE_TYPE_VAR]):
     """Input-based clarification.
 
     Represents a clarification where the user needs to provide a value for a specific argument.
@@ -137,13 +122,16 @@ class InputClarification(ArgumentClarification[SERIALIZABLE_TYPE_VAR]):
 
     """
 
+    argument_name: str = Field(
+        description="The name of the argument that a value is needed for.",
+    )
     category: ClarificationCategory = Field(
         default=ClarificationCategory.INPUT,
         description="The category of this clarification",
     )
 
 
-class MultipleChoiceClarification(ArgumentClarification[SERIALIZABLE_TYPE_VAR]):
+class MultipleChoiceClarification(Clarification[SERIALIZABLE_TYPE_VAR]):
     """Multiple choice-based clarification.
 
     Represents a clarification where the user needs to select an option for a specific argument.
@@ -158,6 +146,9 @@ class MultipleChoiceClarification(ArgumentClarification[SERIALIZABLE_TYPE_VAR]):
 
     """
 
+    argument_name: str = Field(
+        description="The name of the argument that a value is needed for.",
+    )
     category: ClarificationCategory = Field(
         default=ClarificationCategory.MULTIPLE_CHOICE,
         description="The category of this clarification",
@@ -183,7 +174,7 @@ class MultipleChoiceClarification(ArgumentClarification[SERIALIZABLE_TYPE_VAR]):
         return self
 
 
-class ValueConfirmationClarification(ArgumentClarification[SERIALIZABLE_TYPE_VAR]):
+class ValueConfirmationClarification(Clarification[SERIALIZABLE_TYPE_VAR]):
     """Value confirmation clarification.
 
     Represents a clarification where the user is presented with a value and must confirm or deny it.
@@ -195,6 +186,9 @@ class ValueConfirmationClarification(ArgumentClarification[SERIALIZABLE_TYPE_VAR
 
     """
 
+    argument_name: str = Field(
+        description="The name of the argument that whose value needs confirmation.",
+    )
     category: ClarificationCategory = Field(
         default=ClarificationCategory.VALUE_CONFIRMATION,
         description="The category of this clarification",
