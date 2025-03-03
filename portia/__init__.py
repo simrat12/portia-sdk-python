@@ -14,6 +14,8 @@ from portia.clarification import (
     MultipleChoiceClarification,
     ValueConfirmationClarification,
 )
+from portia.clarification_handler import ClarificationHandler
+from portia.cli import CLIExecutionHooks
 from portia.config import (
     SUPPORTED_ANTHROPIC_MODELS,
     SUPPORTED_MISTRALAI_MODELS,
@@ -72,7 +74,7 @@ from portia.plan import Plan, PlanContext, Step
 from portia.plan_run import PlanRun, PlanRunState
 
 # Core classes
-from portia.portia import Portia
+from portia.portia import ExecutionHooks, Portia
 
 # Tool related classes
 from portia.tool import Tool, ToolRunContext
@@ -89,8 +91,10 @@ __all__ = [
     "SUPPORTED_MISTRALAI_MODELS",
     "SUPPORTED_OPENAI_MODELS",
     "ActionClarification",
+    "CLIExecutionHooks",
     "Clarification",
     "ClarificationCategory",
+    "ClarificationHandler",
     "ClarificationListType",
     "ClarificationType",
     "Config",
@@ -100,6 +104,7 @@ __all__ = [
     "DuplicateToolError",
     "ExecutionAgentType",
     "ExecutionContext",
+    "ExecutionHooks",
     "FileReaderTool",
     "FileWriterTool",
     "InMemoryToolRegistry",
