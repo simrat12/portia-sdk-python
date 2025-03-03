@@ -515,7 +515,8 @@ class Portia:
                 plan_run.outputs.final_output = error_output
                 self.storage.save_plan_run(plan_run)
                 logger().error(
-                    "error: {e!s}",
+                    "error: {error}",
+                    error=e,
                     plan=str(plan.id),
                     plan_run=str(plan_run.id),
                 )
