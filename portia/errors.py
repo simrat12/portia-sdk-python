@@ -16,7 +16,7 @@ Classes in this file include:
 - `InvalidToolDescriptionError`: Raised when a tool description is invalid.
 - `ToolRetryError`: Raised when a tool fails after retries.
 - `ToolFailedError`: Raised when a tool fails with a hard error.
-- `InvalidRunStateError`: Raised when a run is in an invalid state.
+- `InvalidPlanRunStateError`: Raised when a plan run is in an invalid state.
 - `InvalidAgentOutputError`: Raised when the agent produces invalid output.
 - `ToolHardError`: Raised when a tool encounters an unrecoverable error.
 - `ToolSoftError`: Raised when a tool encounters an error that can be retried.
@@ -172,8 +172,8 @@ class ToolFailedError(PortiaBaseError):
         super().__init__(f"Tool {tool_id} failed: {error_string}")
 
 
-class InvalidRunStateError(PortiaBaseError):
-    """Raised when a run is in an invalid state."""
+class InvalidPlanRunStateError(PortiaBaseError):
+    """Raised when a plan run is in an invalid state."""
 
 
 class InvalidAgentError(PortiaBaseError):

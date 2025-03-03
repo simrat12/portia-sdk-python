@@ -14,9 +14,9 @@ from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
 from portia.clarification import InputClarification
-from portia.errors import InvalidAgentError, InvalidRunStateError
-from portia.execution_agents.base_agent import Output
-from portia.execution_agents.execution_agent import (
+from portia.errors import InvalidAgentError, InvalidPlanRunStateError
+from portia.execution_agents.base_execution_agent import Output
+from portia.execution_agents.default_execution_agent import (
     MAX_RETRIES,
     DefaultExecutionAgent,
     ParserModel,
@@ -612,7 +612,7 @@ def test_default_execution_agent_edge_cases() -> None:
         context="CONTEXT_STRING",
         agent=agent,  # type: ignore  # noqa: PGH003
     )
-    with pytest.raises(InvalidRunStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         parser_model.invoke({"messages": []})
 
     agent.verified_args = None
@@ -622,7 +622,7 @@ def test_default_execution_agent_edge_cases() -> None:
         tools=[AdditionTool().to_langchain_with_artifact(ctx=get_test_tool_context())],
         agent=agent,  # type: ignore  # noqa: PGH003
     )
-    with pytest.raises(InvalidRunStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         tool_calling_model.invoke({"messages": []})
 
 

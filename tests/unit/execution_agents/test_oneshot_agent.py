@@ -9,7 +9,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langgraph.prebuilt import ToolNode
 
 from portia.errors import InvalidAgentError
-from portia.execution_agents.base_agent import Output
+from portia.execution_agents.base_execution_agent import Output
 from portia.execution_agents.one_shot_agent import OneShotAgent, OneShotToolCallingModel
 from tests.utils import AdditionTool, get_test_config, get_test_plan_run
 

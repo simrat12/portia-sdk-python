@@ -13,7 +13,7 @@ from langgraph.graph import END, MessagesState
 
 from portia.clarification import Clarification
 from portia.errors import InvalidAgentOutputError, ToolFailedError, ToolRetryError
-from portia.execution_agents.base_agent import Output
+from portia.execution_agents.base_execution_agent import Output
 
 if TYPE_CHECKING:
     from portia.tool import Tool
