@@ -12,8 +12,8 @@ from pydantic import HttpUrl, SecretStr
 
 from portia.clarification import ActionClarification, InputClarification
 from portia.config import Config, StorageClass
-from portia.errors import InvalidRunStateError, PlanError, PlanRunNotFoundError
-from portia.execution_agents.base_agent import Output
+from portia.errors import InvalidPlanRunStateError, PlanError, PlanRunNotFoundError
+from portia.execution_agents.base_execution_agent import Output
 from portia.llm_wrapper import LLMWrapper
 from portia.open_source_tools.llm_tool import LLMTool
 from portia.open_source_tools.registry import example_tool_registry, open_source_tool_registry
@@ -180,7 +180,7 @@ def test_portia_create_and_execute_plan_run(portia: Portia) -> None:
 
 
 def test_portia_execute_plan_run(portia: Portia) -> None:
-    """Test resuming a run after interruption."""
+    """Test resuming PlanRun after interruption."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
@@ -227,7 +227,7 @@ def test_portia_execute_run_edge_cases(portia: Portia) -> None:
 
 
 def test_portia_execute_run_invalid_state(portia: Portia) -> None:
-    """Test resuming a run with an invalid state."""
+    """Test resuming PlanRun with an invalid state."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
@@ -240,7 +240,7 @@ def test_portia_execute_run_invalid_state(portia: Portia) -> None:
     # Set invalid state
     plan_run.state = PlanRunState.COMPLETE
 
-    with pytest.raises(InvalidRunStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         portia.execute_plan_run(plan_run)
 
 
@@ -258,7 +258,7 @@ def test_portia_wait_for_ready(portia: Portia) -> None:
     plan_run = portia.create_plan_run(plan)
 
     plan_run.state = PlanRunState.FAILED
-    with pytest.raises(InvalidRunStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         portia.wait_for_ready(plan_run)
 
     plan_run.state = PlanRunState.IN_PROGRESS
@@ -411,8 +411,8 @@ def test_get_clarifications_and_get_run_called_once(portia: Portia) -> None:
         mock_get_clarifications.assert_called_once()
 
 
-def test_portia_execute_query_with_summary(portia: Portia) -> None:
-    """Test execute_query sets both final output and summary correctly."""
+def test_portia_run_query_with_summary(portia: Portia) -> None:
+    """Test run_query sets both final output and summary correctly."""
     query = "What activities can I do in London based on weather?"
 
     # Mock planning_agent response
@@ -542,7 +542,7 @@ def test_portia_wait_for_ready_max_retries(portia: Portia) -> None:
     plan_run.state = PlanRunState.NEED_CLARIFICATION
     portia.storage.save_plan(plan)
     portia.storage.save_plan_run(plan_run)
-    with pytest.raises(InvalidRunStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         portia.wait_for_ready(plan_run, max_retries=0)
 
 
@@ -552,7 +552,7 @@ def test_portia_wait_for_ready_backoff_period(portia: Portia) -> None:
     plan_run.state = PlanRunState.NEED_CLARIFICATION
     portia.storage.save_plan(plan)
     portia.storage.get_plan_run = mock.MagicMock(return_value=plan_run)
-    with pytest.raises(InvalidRunStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         portia.wait_for_ready(plan_run, max_retries=1, backoff_start_time_seconds=0)
 
 
@@ -569,10 +569,10 @@ def test_portia_resolve_clarification_error(portia: Portia) -> None:
     portia.storage.save_plan_run(plan_run)
     portia.storage.save_plan(plan2)
     portia.storage.save_plan_run(plan_run2)
-    with pytest.raises(InvalidRunStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         portia.resolve_clarification(clarification, "test")
 
-    with pytest.raises(InvalidRunStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         portia.resolve_clarification(clarification, "test", plan_run)
 
 
@@ -625,3 +625,33 @@ def test_get_llm_tool() -> None:
     tool = portia._get_tool_for_step(step, plan_run)  # noqa: SLF001
     assert tool is not None
     assert isinstance(tool._child_tool, LLMTool)  # noqa: SLF001 # pyright: ignore[reportAttributeAccessIssue]
+
+
+def test_portia_run_plan(portia: Portia) -> None:
+    """Test that run_plan calls create_plan_run and execute_plan_run."""
+    query = "example query"
+
+    mock_response = StepsOrError(
+        steps=[],
+        error=None,
+    )
+    LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
+
+    plan = portia.plan_query(query)
+
+    # Mock the create_plan_run and execute_plan_run methods
+    with mock.patch.object(portia, "create_plan_run") as mock_create_plan_run, \
+         mock.patch.object(portia, "execute_plan_run") as mock_execute_plan_run:
+
+        mock_plan_run = MagicMock()
+        mock_executed_plan_run = MagicMock()
+        mock_create_plan_run.return_value = mock_plan_run
+        mock_execute_plan_run.return_value = mock_executed_plan_run
+
+        result = portia.run_plan(plan)
+
+        mock_create_plan_run.assert_called_once_with(plan)
+
+        mock_execute_plan_run.assert_called_once_with(mock_plan_run)
+
+        assert result == mock_executed_plan_run

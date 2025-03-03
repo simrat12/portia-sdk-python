@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from portia.clarification import ArgumentClarification, ClarificationListType
 
 if TYPE_CHECKING:
-    from portia.execution_agents.base_agent import Output
+    from portia.execution_agents.base_execution_agent import Output
     from portia.execution_context import ExecutionContext
     from portia.plan import Step, Variable
     from portia.plan_run import PlanRun

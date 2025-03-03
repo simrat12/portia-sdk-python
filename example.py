@@ -1,10 +1,13 @@
 """Simple Example."""
 
-from portia.config import Config, LogLevel
-from portia.execution_context import execution_context
-from portia.open_source_tools.registry import example_tool_registry
-from portia.plan_run import PlanRunState
-from portia.portia import Portia
+from portia import (
+    Portia,
+    Config,
+    LogLevel,
+    execution_context,
+    example_tool_registry,
+    PlanRunState,
+)
 
 portia = Portia(
     Config.from_default(default_log_level=LogLevel.DEBUG),

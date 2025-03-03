@@ -113,7 +113,7 @@ class RunStorage(ABC):
         save_plan_run(self, run: Run) -> None:
             Save a PlanRun.
         get_plan_run(self, plan_run_id: PlanRunUUID) -> PlanRun:
-            Get a run by ID.
+            Get PlanRun by ID.
         get_plan_runs(self, run_state: RunState | None = None, page=int | None = None)
             -> PlanRunListResponse:
             Return runs that match the given run_state
@@ -135,7 +135,7 @@ class RunStorage(ABC):
 
     @abstractmethod
     def get_plan_run(self, plan_run_id: PlanRunUUID) -> PlanRun:
-        """Retrieve a run by its ID.
+        """Retrieve PlanRun by its ID.
 
         Args:
             plan_run_id (RunUUID): The UUID of the run to retrieve.
@@ -409,7 +409,7 @@ class DiskFileStorage(PlanStorage, RunStorage, LogAdditionalStorage):
             raise PlanNotFoundError(plan_id) from e
 
     def save_plan_run(self, plan_run: PlanRun) -> None:
-        """Save a Run object to the storage.
+        """Save PlanRun object to the storage.
 
         Args:
             plan_run (PlanRun): The Run object to save.
@@ -418,7 +418,7 @@ class DiskFileStorage(PlanStorage, RunStorage, LogAdditionalStorage):
         self._write(f"{plan_run.id}.json", plan_run)
 
     def get_plan_run(self, plan_run_id: PlanRunUUID) -> PlanRun:
-        """Retrieve a Run object by its ID.
+        """Retrieve PlanRun object by its ID.
 
         Args:
             plan_run_id (RunUUID): The ID of the Run to retrieve.
@@ -564,7 +564,7 @@ class PortiaCloudStorage(Storage):
             )
 
     def save_plan_run(self, plan_run: PlanRun) -> None:
-        """Save a run to Portia Cloud.
+        """Save PlanRun to Portia Cloud.
 
         Args:
             plan_run (PlanRun): The Run object to save to the cloud.
@@ -595,7 +595,7 @@ class PortiaCloudStorage(Storage):
             self.check_response(response)
 
     def get_plan_run(self, plan_run_id: PlanRunUUID) -> PlanRun:
-        """Retrieve a run from Portia Cloud.
+        """Retrieve PlanRun from Portia Cloud.
 
         Args:
             plan_run_id (RunUUID): The ID of the run to retrieve.

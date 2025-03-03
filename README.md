@@ -59,9 +59,7 @@ Before running the code below, make sure you have the following keys set as envi
 
 ```python
 from dotenv import load_dotenv
-from portia.portia import Portia
-from portia.config import default_config
-from portia.open_source_tools.registry import example_tool_registry
+from portia import Portia, default_config, example_tool_registry
 
 load_dotenv()
 
@@ -94,9 +92,15 @@ Finally we also introduce the concept of a `tool_registry`, which is a flexible 
 ```python
 import os
 from dotenv import load_dotenv
-from portia.portia import Portia
-from portia.config import Config, StorageClass, LogLevel, LLMProvider, LLMModel
-from portia.open_source_tools.registry import example_tool_registry
+from portia import (
+    Portia,
+    Config,
+    StorageClass,
+    LogLevel,
+    LLMProvider,
+    LLMModel,
+    example_tool_registry,
+)
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
@@ -113,8 +117,8 @@ my_config = Config.from_default(
 # Instantiate a Portia client. Load it with the config and with the open source example tool registry
 portia = Portia(config=my_config, tools=example_tool_registry)
 
-# Execute a run from the user query
-plan_run = portia.execute_query('Which stock price grew faster in 2024, Amazon or Google?')
+# Execute a plan run from the user query
+plan_run = portia.run_query('Which stock price grew faster in 2024, Amazon or Google?')
 
 # Serialise into JSON an print the output
 print(plan_run.model_dump_json(indent=2))

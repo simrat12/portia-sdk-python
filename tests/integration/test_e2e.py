@@ -146,8 +146,7 @@ def test_portia_run_query_with_clarifications(
     )
     portia.storage.save_plan(plan)
 
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run_plan(plan)
 
     assert plan_run.state == PlanRunState.NEED_CLARIFICATION
     assert plan_run.get_outstanding_clarifications()[0].user_guidance == "Return a clarification"
@@ -207,8 +206,7 @@ def test_portia_run_query_with_hard_error(
         steps=[clarification_step],
     )
     portia.storage.save_plan(plan)
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run_plan(plan)
 
     assert plan_run.state == PlanRunState.FAILED
     assert plan_run.outputs.final_output
@@ -263,8 +261,7 @@ def test_portia_run_query_with_soft_error(
         steps=[clarification_step],
     )
     portia.storage.save_plan(plan)
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run_plan(plan)
 
     assert plan_run.state == PlanRunState.FAILED
     assert plan_run.outputs.final_output
@@ -345,8 +342,7 @@ def test_portia_run_query_with_multiple_clarifications(
     )
     portia.storage.save_plan(plan)
 
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run_plan(plan)
 
     assert plan_run.state == PlanRunState.NEED_CLARIFICATION
     assert plan_run.get_outstanding_clarifications()[0].user_guidance == "please try again"

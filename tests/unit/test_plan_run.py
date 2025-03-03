@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from portia.clarification import Clarification, InputClarification
 from portia.errors import ToolHardError, ToolSoftError
-from portia.execution_agents.base_agent import Output
+from portia.execution_agents.base_execution_agent import Output
 from portia.plan import PlanUUID, ReadOnlyStep, Step
 from portia.plan_run import PlanRun, PlanRunOutputs, PlanRunState, ReadOnlyPlanRun
 from portia.prefixed_uuid import PlanRunUUID
@@ -26,7 +26,7 @@ def mock_clarification() -> InputClarification:
 
 @pytest.fixture
 def plan_run(mock_clarification: InputClarification) -> PlanRun:
-    """Create a Run instance for testing."""
+    """Create PlanRun instance for testing."""
     return PlanRun(
         plan_id=PlanUUID(),
         current_step_index=1,
@@ -39,7 +39,7 @@ def plan_run(mock_clarification: InputClarification) -> PlanRun:
 
 
 def test_run_initialization() -> None:
-    """Test initialization of a Run instance."""
+    """Test initialization of PlanRun instance."""
     plan_id = PlanUUID()
     plan_run = PlanRun(plan_id=plan_id)
 

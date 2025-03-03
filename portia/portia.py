@@ -30,11 +30,11 @@ from portia.clarification import (
 )
 from portia.config import Config, ExecutionAgentType, PlanningAgentType, StorageClass
 from portia.errors import (
-    InvalidRunStateError,
+    InvalidPlanRunStateError,
     PlanError,
 )
-from portia.execution_agents.base_agent import Output
-from portia.execution_agents.execution_agent import DefaultExecutionAgent
+from portia.execution_agents.base_execution_agent import Output
+from portia.execution_agents.default_execution_agent import DefaultExecutionAgent
 from portia.execution_agents.one_shot_agent import OneShotAgent
 from portia.execution_agents.utils.final_output_summarizer import FinalOutputSummarizer
 from portia.execution_context import (
@@ -57,7 +57,7 @@ from portia.tool_registry import DefaultToolRegistry, InMemoryToolRegistry, Tool
 from portia.tool_wrapper import ToolCallWrapper
 
 if TYPE_CHECKING:
-    from portia.execution_agents.base_agent import BaseExecutionAgent
+    from portia.execution_agents.base_execution_agent import BaseExecutionAgent
     from portia.planning_agents.base_planning_agent import BasePlanningAgent
     from portia.tool import Tool
 
@@ -189,11 +189,24 @@ class Portia:
 
         return plan
 
-    def create_plan_run(self, plan: Plan) -> PlanRun:
-        """Create a run from a Plan.
+    def run_plan(self, plan: Plan) -> PlanRun:
+        """Run a plan.
 
         Args:
-            plan (Plan): The plan to create a run from.
+            plan (Plan): The plan to run.
+
+        Returns:
+            PlanRun: The resulting plan run.
+
+        """
+        plan_run = self.create_plan_run(plan)
+        return self.execute_plan_run(plan_run)
+
+    def create_plan_run(self, plan: Plan) -> PlanRun:
+        """Create a plan run from a Plan.
+
+        Args:
+            plan (Plan): The plan to create a plan run from.
 
         Returns:
             Run: The created plan_run.
@@ -244,7 +257,7 @@ class Portia:
             PlanRunState.NEED_CLARIFICATION,
             PlanRunState.READY_TO_RESUME,
         ]:
-            raise InvalidRunStateError(plan_run.id)
+            raise InvalidPlanRunStateError(plan_run.id)
 
         plan = self.storage.get_plan(plan_id=plan_run.plan_id)
 
@@ -283,7 +296,7 @@ class Portia:
         )
 
         if not matched_clarification:
-            raise InvalidRunStateError("Could not match clarification to run")
+            raise InvalidPlanRunStateError("Could not match clarification to run")
 
         matched_clarification.resolved = True
         matched_clarification.response = response
@@ -328,7 +341,7 @@ class Portia:
             PlanRunState.READY_TO_RESUME,
             PlanRunState.NEED_CLARIFICATION,
         ]:
-            raise InvalidRunStateError("Cannot wait for run that is not ready to run")
+            raise InvalidPlanRunStateError("Cannot wait for run that is not ready to run")
 
         # These states can continue straight away
         if plan_run.state in [
@@ -343,7 +356,7 @@ class Portia:
         current_step_clarifications = plan_run.get_clarifications_for_step()
         while plan_run.state != PlanRunState.READY_TO_RESUME:
             if tries >= max_retries:
-                raise InvalidRunStateError("Run is not ready to resume after max retries")
+                raise InvalidPlanRunStateError("Run is not ready to resume after max retries")
 
             # if we've waited longer than the backoff time, start the backoff period
             if time.time() - start_time > backoff_start_time_seconds:
