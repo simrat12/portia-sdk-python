@@ -10,7 +10,11 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import HttpUrl, SecretStr
 
-from portia.clarification import ActionClarification, InputClarification
+from portia.clarification import (
+    ActionClarification,
+    InputClarification,
+    ValueConfirmationClarification,
+)
 from portia.config import Config, StorageClass
 from portia.errors import InvalidPlanRunStateError, PlanError, PlanRunNotFoundError
 from portia.execution_agents.base_execution_agent import Output
@@ -709,3 +713,46 @@ def test_portia_handle_clarification() -> None:
             clarification_handler.received_clarification.user_guidance
             == "Handle this clarification"
         )
+
+
+def test_portia_error_clarification(portia: Portia) -> None:
+    """Test that portia can handle an error clarification."""
+    mock_response = StepsOrError(
+        steps=[],
+        error=None,
+    )
+    LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
+
+    plan_run = portia.run("test query")
+
+    portia.error_clarification(
+        ValueConfirmationClarification(
+            plan_run_id=plan_run.id,
+            user_guidance="Handle this clarification",
+            argument_name="raise_clarification",
+        ),
+        error=ValueError("test error"),
+    )
+    assert plan_run.state == PlanRunState.FAILED
+
+
+def test_portia_error_clarification_with_plan_run(portia: Portia) -> None:
+    """Test that portia can handle an error clarification."""
+    mock_response = StepsOrError(
+        steps=[],
+        error=None,
+    )
+    LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
+
+    plan_run = portia.run("test query")
+
+    portia.error_clarification(
+        ValueConfirmationClarification(
+            plan_run_id=plan_run.id,
+            user_guidance="Handle this clarification",
+            argument_name="raise_clarification",
+        ),
+        error=ValueError("test error"),
+        plan_run=plan_run,
+    )
+    assert plan_run.state == PlanRunState.FAILED
