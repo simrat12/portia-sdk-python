@@ -20,6 +20,7 @@ This module ensures flexible and configurable logging, supporting both default a
 from __future__ import annotations
 
 import sys
+import re
 from typing import TYPE_CHECKING, Any, Protocol
 
 from loguru import logger as default_logger
@@ -49,27 +50,78 @@ class LoggerInterface(Protocol):
     def error(self, msg: str, *args, **kwargs) -> None: ...  # noqa: ANN002, ANN003, D102
     def critical(self, msg: str, *args, **kwargs) -> None: ...  # noqa: ANN002, ANN003, D102
 
+class Formatter:
+    """A class used to format log records.
 
-def log_formatter(record: Any) -> str:  # noqa: ANN401
-    """Format log record for Loguru.
+    Attributes
+    ----------
+    max_lines : int
+        The maximum number of lines to include in the formatted log message.
 
-    Args:
-        record: Log record containing log attributes.
-
-    Returns:
-        str: Formatted log string.
+    Methods
+    -------
+    format(record)
+        Formats a log record into a string.
 
     """
-    escaped_message = record["message"].replace("{", "{{").replace("}", "}}")
 
-    return (
-        "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
-        "<level>{level}</level> | "
-        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
-        "<level>" + escaped_message + "</level> | "
-        "{extra}"
-    )
+    def __init__(self) -> None:
+        """Initialize the logger with default settings.
 
+        Attributes:
+            max_lines (int): The maximum number of lines the logger can handle, default is 30.
+
+        """
+        self.max_lines = 30
+
+    def format(self, record: Any) -> str:
+        """Format a log record into a string with specific formatting.
+
+        Args:
+            record (dict): A dictionary containing log record information.
+                Expected keys are "message", "extra", "time", "level", "name",
+                "function", and "line".
+
+        Returns:
+            str: The formatted log record string.
+
+        """
+        msg = record["message"]
+        if isinstance(msg, str):
+            msg = re.sub(r"(?<!\{)\{(?!\{)", "{{", msg)
+            msg = re.sub(r"(?<!\})\}(?!\})", "}}", msg)
+            msg = self._truncated_message(msg)
+
+        # Create the base format string
+        result = (
+            f"<green>{record['time'].strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]}</green> | "
+            f"<level>{record['level'].name}</level> | "
+            f"<cyan>{record['name']}</cyan>:"
+            f"<cyan>{record['function']}</cyan>:"
+            f"<cyan>{record['line']}</cyan> - "
+            f"<level>{msg}</level>"
+        )
+
+        # Add extra information if present
+        if record["extra"]:
+            result += " | {extra}"
+
+        result += "\n"
+        return result
+
+    def _truncated_message(self, msg: str) -> str:
+        lines = msg.split("\n")
+        if len(lines) > self.max_lines:
+            # Keep first and last parts, truncate the middle
+            keep_lines = self.max_lines - 1  # Reserve one line for truncation message
+            head_lines = keep_lines // 2
+            tail_lines = keep_lines - head_lines
+
+            truncated_lines = lines[:head_lines]
+            truncated_lines.append(f"... (truncated {len(lines) - keep_lines} lines) ...")
+            truncated_lines.extend(lines[-tail_lines:])
+            msg = "\n".join(truncated_lines)
+        return msg
 
 class LoggerManager:
     """Manages the package-level logger.
@@ -100,11 +152,12 @@ class LoggerManager:
             custom_logger (LoggerInterface | None): A custom logger to use. Defaults to None.
 
         """
+        self.formatter = Formatter()
         default_logger.remove()
         default_logger.add(
             sys.stdout,
             level="INFO",
-            format=log_formatter,
+            format=self.formatter.format,
             serialize=False,
         )
         self._logger: LoggerInterface = custom_logger or default_logger  # type: ignore  # noqa: PGH003
@@ -155,7 +208,7 @@ class LoggerManager:
             default_logger.add(
                 log_sink,
                 level=config.default_log_level.value,
-                format=log_formatter,
+                format=self.formatter.format,
                 serialize=config.json_log_serialize,
             )
 
