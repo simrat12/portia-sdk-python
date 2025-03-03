@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, model_serializer, model_validator
 
 PLAN_UUID_PREFIX = "plan"
-PLAN_RUN_UUID_PREFIX = "pr"
+PLAN_RUN_UUID_PREFIX = "prun"
 CLARIFICATION_UUID_PREFIX = "clar"
 
 
