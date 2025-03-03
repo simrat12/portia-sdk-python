@@ -34,9 +34,9 @@ from portia.clarification import (
 from portia.config import Config
 from portia.execution_context import execution_context
 from portia.logger import logger
-from portia.runner import Runner
+from portia.plan_run import PlanRunState
+from portia.portia import Portia
 from portia.tool_registry import DefaultToolRegistry
-from portia.workflow import WorkflowState
 
 if TYPE_CHECKING:
     from pydantic.fields import FieldInfo
@@ -176,7 +176,7 @@ def run(  # noqa: C901
     registry = DefaultToolRegistry(config)
 
     # Run the query
-    runner = Runner(
+    portia = Portia(
         config=config,
         tools=(
             registry.match_tools(tool_ids=[cli_config.tool_id]) if cli_config.tool_id else registry
@@ -184,55 +184,54 @@ def run(  # noqa: C901
     )
 
     with execution_context(end_user_id=cli_config.end_user_id):
-        plan = runner.generate_plan(query)
+        plan = portia.plan(query)
 
         if cli_config.confirm:
             click.echo(plan.model_dump_json(indent=4))
             if not click.confirm("Do you want to execute the plan?"):
                 return
 
-        workflow = runner.create_workflow(plan)
-        workflow = runner.execute_workflow(workflow)
+        plan_run = portia.run(query)
 
-        final_states = [WorkflowState.COMPLETE, WorkflowState.FAILED]
-        while workflow.state not in final_states:
-            for clarification in workflow.get_outstanding_clarifications():
+        final_states = [PlanRunState.COMPLETE, PlanRunState.FAILED]
+        while plan_run.state not in final_states:
+            for clarification in plan_run.get_outstanding_clarifications():
                 if isinstance(clarification, MultipleChoiceClarification):
                     choices = click.Choice(clarification.options)
                     user_input = click.prompt(
                         clarification.user_guidance + "\nPlease choose a value:\n",
                         type=choices,
                     )
-                    workflow = runner.resolve_clarification(clarification, user_input, workflow)
+                    plan_run = portia.resolve_clarification(clarification, user_input, plan_run)
                 if isinstance(clarification, ActionClarification):
                     webbrowser.open(str(clarification.action_url))
                     logger().info("Please complete authentication to continue")
-                    workflow = runner.wait_for_ready(workflow)
+                    plan_run = portia.wait_for_ready(plan_run)
                 if isinstance(clarification, InputClarification):
                     user_input = click.prompt(
                         clarification.user_guidance + "\nPlease enter a value:\n",
                     )
-                    workflow = runner.resolve_clarification(clarification, user_input, workflow)
+                    plan_run = portia.resolve_clarification(clarification, user_input, plan_run)
                 if isinstance(clarification, ValueConfirmationClarification):
                     if click.confirm(text=clarification.user_guidance, default=False):
-                        workflow = runner.resolve_clarification(
+                        plan_run = portia.resolve_clarification(
                             clarification,
                             response=True,
-                            workflow=workflow,
+                            plan_run=plan_run,
                         )
                     else:
-                        workflow.state = WorkflowState.FAILED
-                        runner.storage.save_workflow(workflow)
+                        plan_run.state = PlanRunState.FAILED
+                        portia.storage.save_plan_run(plan_run)
 
                 if isinstance(clarification, CustomClarification):
                     click.echo(clarification.user_guidance)
                     click.echo(f"Additional data: {json.dumps(clarification.data)}")
                     user_input = click.prompt("\nPlease enter a value:\n")
-                    workflow = runner.resolve_clarification(clarification, user_input, workflow)
+                    plan_run = portia.resolve_clarification(clarification, user_input, plan_run)
 
-            runner.execute_workflow(workflow)
+            portia.resume(plan_run)
 
-        click.echo(workflow.model_dump_json(indent=4))
+        click.echo(plan_run.model_dump_json(indent=4))
 
 
 @click.command()
@@ -244,10 +243,10 @@ def plan(
 ) -> None:
     """Plan a query."""
     cli_config, config = _get_config(**kwargs)
-    runner = Runner(config=config)
+    portia = Portia(config=config)
 
     with execution_context(end_user_id=cli_config.end_user_id):
-        output = runner.generate_plan(query)
+        output = portia.plan(query)
 
     click.echo(output.model_dump_json(indent=4))
 
