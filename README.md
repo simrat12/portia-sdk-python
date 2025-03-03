@@ -116,7 +116,7 @@ my_config = Config.from_default(
 # Instantiate a Portia client. Load it with the config and with the open source example tool registry
 portia = Portia(config=my_config, tools=example_tool_registry)
 
-# Execute a plan run from the user query
+# Execute query.
 plan_run = portia.run('Which stock price grew faster in 2024, Amazon or Google?')
 
 # Serialise into JSON an print the output
