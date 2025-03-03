@@ -1,12 +1,12 @@
 """Simple Example."""
 
 from portia import (
-    Portia,
     Config,
     LogLevel,
-    execution_context,
-    example_tool_registry,
     PlanRunState,
+    Portia,
+    example_tool_registry,
+    execution_context,
 )
 
 portia = Portia(
