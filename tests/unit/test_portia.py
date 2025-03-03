@@ -653,26 +653,29 @@ def test_portia_handle_clarification() -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_plan)
     mock_step_agent = mock.MagicMock()
-    mock_step_agent.execute_sync.side_effect = [
-        Output(
-            value=InputClarification(
-                plan_run_id=PlanRunUUID(),
-                user_guidance="Handle this clarification",
-                argument_name="raise_clarification",
-            ),
-        ),
-        Output(value="I caught the clarification"),
-    ]
-    mock_summarizer = mock.MagicMock()
-    mock_summarizer.create_summary.side_effect = "I caught the clarification"
+    mock_summarizer_agent = mock.MagicMock()
+    mock_summarizer_agent.create_summary.side_effect = "I caught the clarification"
     with (
         mock.patch(
             "portia.portia.FinalOutputSummarizer",
-            return_value=mock_summarizer,
+            return_value=mock_summarizer_agent,
         ),
         mock.patch.object(portia, "_get_agent_for_step", return_value=mock_step_agent),
     ):
-        plan_run = portia.run_query("Raise a clarification")
+        plan = portia.plan_query("Raise a clarification")
+        plan_run = portia.create_plan_run(plan)
+
+        mock_step_agent.execute_sync.side_effect = [
+            Output(
+                value=InputClarification(
+                    plan_run_id=plan_run.id,
+                    user_guidance="Handle this clarification",
+                    argument_name="raise_clarification",
+                ),
+            ),
+            Output(value="I caught the clarification"),
+        ]
+        portia.execute_plan_run(plan_run)
         assert plan_run.state == PlanRunState.COMPLETE
 
         # Check that the clarifications were handled correctly
