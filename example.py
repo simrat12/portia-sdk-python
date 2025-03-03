@@ -48,4 +48,4 @@ if plan_run.state == PlanRunState.NEED_CLARIFICATION:
 
 # Execute again with the same execution context
 with execution_context(context=plan_run.execution_context):
-    portia.execute_plan_run(plan_run)
+    portia.resume(plan_run)

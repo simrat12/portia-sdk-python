@@ -191,8 +191,7 @@ def run(  # noqa: C901
             if not click.confirm("Do you want to execute the plan?"):
                 return
 
-        plan_run = portia.create_plan_run(plan)
-        plan_run = portia.execute_plan_run(plan_run)
+        plan_run = portia.run(query)
 
         final_states = [PlanRunState.COMPLETE, PlanRunState.FAILED]
         while plan_run.state not in final_states:
@@ -230,7 +229,7 @@ def run(  # noqa: C901
                     user_input = click.prompt("\nPlease enter a value:\n")
                     plan_run = portia.resolve_clarification(clarification, user_input, plan_run)
 
-            portia.execute_plan_run(plan_run)
+            portia.resume(plan_run)
 
         click.echo(plan_run.model_dump_json(indent=4))
 

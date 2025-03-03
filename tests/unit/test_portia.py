@@ -164,7 +164,7 @@ def test_portia_generate_plan_with_tools(portia: Portia) -> None:
     assert plan.plan_context.tool_ids == ["add_tool"]
 
 
-def test_portia_create_and_execute_plan_run(portia: Portia) -> None:
+def test_portia_resume(portia: Portia) -> None:
     """Test running a plan."""
     query = "example query"
 
@@ -172,37 +172,35 @@ def test_portia_create_and_execute_plan_run(portia: Portia) -> None:
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
     plan = portia.plan(query)
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia._create_plan_run(plan)  # noqa: SLF001
+    plan_run = portia.resume(plan_run)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert plan_run.plan_id == plan.id
 
 
-def test_portia_execute_plan_run(portia: Portia) -> None:
+def test_portia_resume_after_interruption(portia: Portia) -> None:
     """Test resuming PlanRun after interruption."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan(query)
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run(query)
 
     # Simulate run being in progress
     plan_run.state = PlanRunState.IN_PROGRESS
     plan_run.current_step_index = 1
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.resume(plan_run)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert plan_run.current_step_index == 1
 
 
-def test_portia_execute_run_edge_cases(portia: Portia) -> None:
+def test_portia_resume_edge_cases(portia: Portia) -> None:
     """Test edge cases for execute."""
     with pytest.raises(ValueError):  # noqa: PT011
-        portia.execute_plan_run()
+        portia.resume()
 
     query = "example query"
     mock_response = StepsOrError(
@@ -212,36 +210,34 @@ def test_portia_execute_run_edge_cases(portia: Portia) -> None:
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
     plan = portia.plan(query)
-    plan_run = portia.create_plan_run(plan)
+    plan_run = portia._create_plan_run(plan)  # noqa: SLF001
 
     # Simulate run being in progress
     plan_run.state = PlanRunState.IN_PROGRESS
     plan_run.current_step_index = 1
-    plan_run = portia.execute_plan_run(plan_run_id=plan_run.id)
+    plan_run = portia.resume(plan_run_id=plan_run.id)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert plan_run.current_step_index == 1
 
     with pytest.raises(PlanRunNotFoundError):
-        portia.execute_plan_run(plan_run_id=PlanRunUUID())
+        portia.resume(plan_run_id=PlanRunUUID())
 
 
-def test_portia_execute_run_invalid_state(portia: Portia) -> None:
+def test_portia_run_invalid_state(portia: Portia) -> None:
     """Test resuming PlanRun with an invalid state."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan(query)
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run(query)
 
     # Set invalid state
     plan_run.state = PlanRunState.COMPLETE
 
     with pytest.raises(InvalidPlanRunStateError):
-        portia.execute_plan_run(plan_run)
+        portia.resume(plan_run)
 
 
 def test_portia_wait_for_ready(portia: Portia) -> None:
@@ -254,8 +250,7 @@ def test_portia_wait_for_ready(portia: Portia) -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan(query)
-    plan_run = portia.create_plan_run(plan)
+    plan_run = portia.run(query)
 
     plan_run.state = PlanRunState.FAILED
     with pytest.raises(InvalidPlanRunStateError):
@@ -381,8 +376,7 @@ def test_get_clarifications_and_get_run_called_once(portia: Portia) -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan(query)
-    plan_run = portia.create_plan_run(plan)
+    plan_run = portia.run(query)
 
     # Set the run state to NEED_CLARIFICATION to ensure it goes through the wait logic
     plan_run.state = PlanRunState.NEED_CLARIFICATION
@@ -640,18 +634,18 @@ def test_portia_run_plan(portia: Portia) -> None:
     plan = portia.plan(query)
 
     # Mock the create_plan_run and execute_plan_run methods
-    with mock.patch.object(portia, "create_plan_run") as mock_create_plan_run, \
-         mock.patch.object(portia, "execute_plan_run") as mock_execute_plan_run:
+    with mock.patch.object(portia, "_create_plan_run") as mock_create_plan_run, \
+         mock.patch.object(portia, "resume") as mock_resume:
 
         mock_plan_run = MagicMock()
-        mock_executed_plan_run = MagicMock()
+        mock_resumed_plan_run = MagicMock()
         mock_create_plan_run.return_value = mock_plan_run
-        mock_execute_plan_run.return_value = mock_executed_plan_run
+        mock_resume.return_value = mock_resumed_plan_run
 
         result = portia.run_plan(plan)
 
         mock_create_plan_run.assert_called_once_with(plan)
 
-        mock_execute_plan_run.assert_called_once_with(mock_plan_run)
+        mock_resume.assert_called_once_with(mock_plan_run)
 
-        assert result == mock_executed_plan_run
+        assert result == mock_resumed_plan_run

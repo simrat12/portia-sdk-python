@@ -67,12 +67,11 @@ load_dotenv()
 portia = Portia(config=default_config(), tools=example_tool_registry)
 
 # Generate the plan from the user query
-plan = portia.generate_plan('Which stock price grew faster in 2024, Amazon or Google?')
+plan = portia.plan('Which stock price grew faster in 2024, Amazon or Google?')
 print(plan.model_dump_json(indent=2))
 
 # Create and execute the run from the generated plan
-plan_run = portia.create_plan_run(plan)
-plan_run = portia.execute_plan_run(plan_run)
+plan_run = portia.run_plan(plan)
 
 # Serialise into JSON and print the output
 print(plan_run.model_dump_json(indent=2))
@@ -118,7 +117,7 @@ my_config = Config.from_default(
 portia = Portia(config=my_config, tools=example_tool_registry)
 
 # Execute a plan run from the user query
-plan_run = portia.run_query('Which stock price grew faster in 2024, Amazon or Google?')
+plan_run = portia.run('Which stock price grew faster in 2024, Amazon or Google?')
 
 # Serialise into JSON an print the output
 print(plan_run.model_dump_json(indent=2))

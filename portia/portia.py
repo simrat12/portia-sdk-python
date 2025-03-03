@@ -124,8 +124,8 @@ class Portia:
 
         """
         plan = self.plan(query, tools, example_plans)
-        plan_run = self.create_plan_run(plan)
-        return self.execute_plan_run(plan_run)
+        plan_run = self._create_plan_run(plan)
+        return self.resume(plan_run)
 
     def plan(
         self,
@@ -196,40 +196,22 @@ class Portia:
             plan (Plan): The plan to run.
 
         Returns:
-            PlanRun: The resulting plan run.
+            PlanRun: The resulting PlanRun object.
 
         """
-        plan_run = self.create_plan_run(plan)
-        return self.execute_plan_run(plan_run)
+        plan_run = self._create_plan_run(plan)
+        return self.resume(plan_run)
 
-    def create_plan_run(self, plan: Plan) -> PlanRun:
-        """Create a plan run from a Plan.
-
-        Args:
-            plan (Plan): The plan to create a plan run from.
-
-        Returns:
-            Run: The created plan_run.
-
-        """
-        plan_run = PlanRun(
-            plan_id=plan.id,
-            state=PlanRunState.NOT_STARTED,
-            execution_context=get_execution_context(),
-        )
-        self.storage.save_plan_run(plan_run)
-        return plan_run
-
-    def execute_plan_run(
+    def resume(
         self,
         plan_run: PlanRun | None = None,
         plan_run_id: PlanRunUUID | str | None = None,
     ) -> PlanRun:
-        """Run a PlanRun.
+        """Resume a PlanRun.
 
         Args:
-            plan_run (PlanRun | None): The PlanRun to execute. Defaults to None.
-            plan_run_id (RunUUID | str | None): The ID of the PlanRun to execute. Defaults to
+            plan_run (PlanRun | None): The PlanRun to resume. Defaults to None.
+            plan_run_id (RunUUID | str | None): The ID of the PlanRun to resume. Defaults to
                 None.
 
         Returns:
@@ -237,12 +219,12 @@ class Portia:
 
         Raises:
             ValueError: If neither plan_run nor plan_run_id is provided.
-            InvalidRunStateError: If the plan run is not in a valid state to be executed.
+            InvalidPlanRunStateError: If the plan run is not in a valid state to be resumed.
 
         """
         if not plan_run:
             if not plan_run_id:
-                raise ValueError("Either run or plan_run_id must be provided")
+                raise ValueError("Either plan_run or plan_run_id must be provided")
 
             parsed_id = (
                 PlanRunUUID.from_string(plan_run_id)
@@ -390,6 +372,24 @@ class Portia:
 
         logger().info(f"Run {plan_run.id} is ready to resume")
 
+        return plan_run
+
+    def _create_plan_run(self, plan: Plan) -> PlanRun:
+        """Create a PlanRun from a Plan.
+
+        Args:
+            plan (Plan): The plan to create a plan run from.
+
+        Returns:
+            PlanRun: The created PlanRun object.
+
+        """
+        plan_run = PlanRun(
+            plan_id=plan.id,
+            state=PlanRunState.NOT_STARTED,
+            execution_context=get_execution_context(),
+        )
+        self.storage.save_plan_run(plan_run)
         return plan_run
 
     def _execute_plan_run(self, plan: Plan, plan_run: PlanRun) -> PlanRun:

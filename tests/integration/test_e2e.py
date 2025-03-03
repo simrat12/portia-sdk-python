@@ -156,7 +156,7 @@ def test_portia_run_query_with_clarifications(
         "False",
     )
 
-    portia.execute_plan_run(plan_run)
+    portia.resume(plan_run)
     assert plan_run.state == PlanRunState.COMPLETE
 
 
@@ -353,7 +353,7 @@ def test_portia_run_query_with_multiple_clarifications(
         plan_run,
     )
 
-    portia.execute_plan_run(plan_run)
+    portia.resume(plan_run)
     assert plan_run.state == PlanRunState.COMPLETE
     # 498 = 456 (clarification - value a - step 1) + 2 (value b - step 1) + 40 (value b - step 2)
     assert plan_run.outputs.final_output is not None
