@@ -625,6 +625,8 @@ class Portia:
                 logger().info(
                     f"Clarification requested - category: {clarification.category}, "
                     f"user_guidance: {clarification.user_guidance}.",
+                    plan=str(plan.id),
+                    plan_run=str(plan_run.id),
                 )
                 logger().debug(
                     f"Clarification requested: {clarification.model_dump_json(indent=4)}",

@@ -19,8 +19,8 @@ This module ensures flexible and configurable logging, supporting both default a
 
 from __future__ import annotations
 
-import sys
 import re
+import sys
 from typing import TYPE_CHECKING, Any, Protocol
 
 from loguru import logger as default_logger
