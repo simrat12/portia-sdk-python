@@ -15,7 +15,6 @@ from portia.clarification import (
     ValueConfirmationClarification,
 )
 from portia.clarification_handler import ClarificationHandler
-from portia.cli import CLIExecutionHooks
 from portia.config import (
     SUPPORTED_ANTHROPIC_MODELS,
     SUPPORTED_MISTRALAI_MODELS,
@@ -91,7 +90,6 @@ __all__ = [
     "SUPPORTED_MISTRALAI_MODELS",
     "SUPPORTED_OPENAI_MODELS",
     "ActionClarification",
-    "CLIExecutionHooks",
     "Clarification",
     "ClarificationCategory",
     "ClarificationHandler",
