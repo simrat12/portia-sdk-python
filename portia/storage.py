@@ -210,16 +210,15 @@ class LogAdditionalStorage(AdditionalStorage):
 
         """
         logger().info(
-            "Invoked {tool_name} with args: {tool_input}",
-            tool_name=tool_call.tool_name,
-            tool_input=tool_call.input,
+            f"Invoked {tool_call.tool_name!s} with args: {tool_call.input!s}",
         )
         logger().debug(
-            f"Tool {tool_call.tool_name} executed in {tool_call.latency_seconds:.2f} seconds",
+            f"Tool {tool_call.tool_name!s} executed in {tool_call.latency_seconds:.2f} seconds",
         )
         match tool_call.status:
             case ToolCallStatus.SUCCESS:
-                logger().info("Tool call is successful", output=tool_call.output)
+                logger().info(f"Tool call {tool_call.tool_name!s} completed",
+                output=tool_call.output)
             case ToolCallStatus.FAILED:
                 logger().error("Tool returned error", output=tool_call.output)
             case ToolCallStatus.NEED_CLARIFICATION:
