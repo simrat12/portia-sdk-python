@@ -622,7 +622,7 @@ def test_get_llm_tool() -> None:
 
 
 def test_portia_run_plan(portia: Portia) -> None:
-    """Test that run_plan calls create_plan_run and execute_plan_run."""
+    """Test that run_plan calls _create_plan_run and resume."""
     query = "example query"
 
     mock_response = StepsOrError(
@@ -633,7 +633,7 @@ def test_portia_run_plan(portia: Portia) -> None:
 
     plan = portia.plan(query)
 
-    # Mock the create_plan_run and execute_plan_run methods
+    # Mock the _create_plan_run and resume methods
     with mock.patch.object(portia, "_create_plan_run") as mock_create_plan_run, \
          mock.patch.object(portia, "resume") as mock_resume:
 
