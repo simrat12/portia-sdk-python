@@ -25,6 +25,7 @@ from portia.config import (
     LogLevel,
     PlanningAgentType,
     StorageClass,
+    default_config,
 )
 
 # Error classes
@@ -138,6 +139,7 @@ __all__ = [
     "ToolRunContext",
     "ValueConfirmationClarification",
     "WeatherTool",
+    "default_config",
     "example_tool_registry",
     "execution_context",
     "logger",
