@@ -19,7 +19,7 @@ from pydantic import (
 )
 
 from portia.common import SERIALIZABLE_TYPE_VAR, PortiaEnum
-from portia.prefixed_uuid import ClarificationUUID, WorkflowUUID
+from portia.prefixed_uuid import ClarificationUUID, PlanRunUUID
 
 
 class ClarificationCategory(PortiaEnum):
@@ -59,8 +59,8 @@ class Clarification(BaseModel, Generic[SERIALIZABLE_TYPE_VAR]):
         default_factory=ClarificationUUID,
         description="A unique ID for this clarification",
     )
-    workflow_id: WorkflowUUID = Field(
-        description="The workflow this clarification is for",
+    plan_run_id: PlanRunUUID = Field(
+        description="The run this clarification is for",
     )
     category: ClarificationCategory = Field(
         description="The category of this clarification",

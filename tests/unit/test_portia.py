@@ -1,4 +1,4 @@
-"""Tests for runner classes."""
+"""Tests for portia classes."""
 
 import tempfile
 import threading
@@ -10,33 +10,33 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import HttpUrl, SecretStr
 
-from portia.agents.base_agent import Output
 from portia.clarification import ActionClarification, InputClarification
 from portia.config import Config, StorageClass
-from portia.errors import InvalidWorkflowStateError, PlanError, WorkflowNotFoundError
+from portia.errors import InvalidRunStateError, PlanError, PlanRunNotFoundError
+from portia.execution_agents.base_agent import Output
 from portia.llm_wrapper import LLMWrapper
 from portia.open_source_tools.llm_tool import LLMTool
 from portia.open_source_tools.registry import example_tool_registry, open_source_tool_registry
 from portia.plan import Plan, PlanContext, ReadOnlyPlan, Step
-from portia.planners.planner import StepsOrError
-from portia.runner import Runner
+from portia.plan_run import PlanRun, PlanRunOutputs, PlanRunState, PlanRunUUID, ReadOnlyPlanRun
+from portia.planning_agents.base_planning_agent import StepsOrError
+from portia.portia import Portia
 from portia.tool import Tool, ToolRunContext
 from portia.tool_registry import InMemoryToolRegistry
-from portia.workflow import ReadOnlyWorkflow, Workflow, WorkflowOutputs, WorkflowState, WorkflowUUID
-from tests.utils import AdditionTool, ClarificationTool, get_test_config, get_test_workflow
+from tests.utils import AdditionTool, ClarificationTool, get_test_config, get_test_plan_run
 
 
 @pytest.fixture
-def runner() -> Runner:
-    """Fixture to create a Runner instance for testing."""
+def portia() -> Portia:
+    """Fixture to create a Portia instance for testing."""
     config = get_test_config()
     tool_registry = InMemoryToolRegistry.from_local_tools([AdditionTool(), ClarificationTool()])
-    return Runner(config=config, tools=tool_registry)
+    return Portia(config=config, tools=tool_registry)
 
 
-def test_runner_local_default_config_with_api_keys() -> None:
+def test_portia_local_default_config_with_api_keys() -> None:
     """Test that the default config is used if no config is provided."""
-    # Unset the portia API env that the runner doesn't try to use Portia Cloud
+    # Unset the portia API env that the portia doesn't try to use Portia Cloud
     with mock.patch.dict(
         "os.environ",
         {
@@ -46,12 +46,12 @@ def test_runner_local_default_config_with_api_keys() -> None:
             "OPENWEATHERMAP_API_KEY": "123",
         },
     ):
-        runner = Runner()
-        assert runner.config == Config.from_default()
-        assert len(runner.tool_registry.get_tools()) == len(open_source_tool_registry.get_tools())
+        portia = Portia()
+        assert portia.config == Config.from_default()
+        assert len(portia.tool_registry.get_tools()) == len(open_source_tool_registry.get_tools())
 
 
-def test_runner_local_default_config_without_api_keys() -> None:
+def test_portia_local_default_config_without_api_keys() -> None:
     """Test that the default config when no API keys are provided."""
     # Unset the Tavily and weather API and check that these aren't included in
     # the default tool registry
@@ -64,15 +64,15 @@ def test_runner_local_default_config_without_api_keys() -> None:
             "OPENWEATHERMAP_API_KEY": "",
         },
     ):
-        runner = Runner()
-        assert runner.config == Config.from_default()
+        portia = Portia()
+        assert portia.config == Config.from_default()
         assert (
-            len(runner.tool_registry.get_tools()) == len(open_source_tool_registry.get_tools()) - 2
+            len(portia.tool_registry.get_tools()) == len(open_source_tool_registry.get_tools()) - 2
         )
 
 
-def test_runner_run_query(runner: Runner) -> None:
-    """Test running a query using the Runner."""
+def test_portia_run_query(portia: Portia) -> None:
+    """Test running a query."""
     query = "example query"
 
     mock_response = StepsOrError(
@@ -81,15 +81,15 @@ def test_runner_run_query(runner: Runner) -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    workflow = runner.execute_query(query)
+    plan_run = portia.run_query(query)
 
-    assert workflow.state == WorkflowState.COMPLETE
+    assert plan_run.state == PlanRunState.COMPLETE
 
 
-def test_runner_run_query_tool_list() -> None:
-    """Test running a query using the Runner."""
+def test_portia_run_query_tool_list() -> None:
+    """Test running a query."""
     query = "example query"
-    runner = Runner(config=get_test_config(), tools=[AdditionTool(), ClarificationTool()])
+    portia = Portia(config=get_test_config(), tools=[AdditionTool(), ClarificationTool()])
 
     mock_response = StepsOrError(
         steps=[],
@@ -97,13 +97,13 @@ def test_runner_run_query_tool_list() -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    workflow = runner.execute_query(query)
+    plan_run = portia.run_query(query)
 
-    assert workflow.state == WorkflowState.COMPLETE
+    assert plan_run.state == PlanRunState.COMPLETE
 
 
-def test_runner_run_query_disk_storage() -> None:
-    """Test running a query using the Runner."""
+def test_portia_run_query_disk_storage() -> None:
+    """Test running a query."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         query = "example query"
         config = Config.from_default(
@@ -112,35 +112,35 @@ def test_runner_run_query_disk_storage() -> None:
             storage_dir=tmp_dir,
         )
         tool_registry = InMemoryToolRegistry.from_local_tools([AdditionTool(), ClarificationTool()])
-        runner = Runner(config=config, tools=tool_registry)
+        portia = Portia(config=config, tools=tool_registry)
 
         mock_response = StepsOrError(steps=[], error=None)
         LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-        workflow = runner.execute_query(query)
+        plan_run = portia.run_query(query)
 
-        assert workflow.state == WorkflowState.COMPLETE
+        assert plan_run.state == PlanRunState.COMPLETE
         # Use Path to check for the files
         plan_files = list(Path(tmp_dir).glob("plan-*.json"))
-        workflow_files = list(Path(tmp_dir).glob("wkfl-*.json"))
+        run_files = list(Path(tmp_dir).glob("prun-*.json"))
 
         assert len(plan_files) == 1
-        assert len(workflow_files) == 1
+        assert len(run_files) == 1
 
 
-def test_runner_generate_plan(runner: Runner) -> None:
-    """Test planning a query using the Runner."""
+def test_portia_generate_plan(portia: Portia) -> None:
+    """Test planning a query."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = runner.generate_plan(query)
+    plan = portia.plan_query(query)
 
     assert plan.plan_context.query == query
 
 
-def test_runner_generate_plan_error(runner: Runner) -> None:
+def test_portia_generate_plan_error(portia: Portia) -> None:
     """Test planning a query that returns an error."""
     query = "example query"
 
@@ -148,61 +148,61 @@ def test_runner_generate_plan_error(runner: Runner) -> None:
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
     with pytest.raises(PlanError):
-        runner.generate_plan(query)
+        portia.plan_query(query)
 
 
-def test_runner_generate_plan_with_tools(runner: Runner) -> None:
-    """Test planning a query using the Runner."""
+def test_portia_generate_plan_with_tools(portia: Portia) -> None:
+    """Test planning a query."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = runner.generate_plan(query, tools=["add_tool"])
+    plan = portia.plan_query(query, tools=["add_tool"])
 
     assert plan.plan_context.query == query
     assert plan.plan_context.tool_ids == ["add_tool"]
 
 
-def test_runner_create_and_execute_workflow(runner: Runner) -> None:
-    """Test running a plan using the Runner."""
+def test_portia_create_and_execute_plan_run(portia: Portia) -> None:
+    """Test running a plan."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = runner.generate_plan(query)
-    workflow = runner.create_workflow(plan)
-    workflow = runner.execute_workflow(workflow)
+    plan = portia.plan_query(query)
+    plan_run = portia.create_plan_run(plan)
+    plan_run = portia.execute_plan_run(plan_run)
 
-    assert workflow.state == WorkflowState.COMPLETE
-    assert workflow.plan_id == plan.id
+    assert plan_run.state == PlanRunState.COMPLETE
+    assert plan_run.plan_id == plan.id
 
 
-def test_runner_execute_workflow(runner: Runner) -> None:
-    """Test resuming a workflow after interruption."""
+def test_portia_execute_plan_run(portia: Portia) -> None:
+    """Test resuming a run after interruption."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = runner.generate_plan(query)
-    workflow = runner.create_workflow(plan)
-    workflow = runner.execute_workflow(workflow)
+    plan = portia.plan_query(query)
+    plan_run = portia.create_plan_run(plan)
+    plan_run = portia.execute_plan_run(plan_run)
 
-    # Simulate workflow being in progress
-    workflow.state = WorkflowState.IN_PROGRESS
-    workflow.current_step_index = 1
-    workflow = runner.execute_workflow(workflow)
+    # Simulate run being in progress
+    plan_run.state = PlanRunState.IN_PROGRESS
+    plan_run.current_step_index = 1
+    plan_run = portia.execute_plan_run(plan_run)
 
-    assert workflow.state == WorkflowState.COMPLETE
-    assert workflow.current_step_index == 1
+    assert plan_run.state == PlanRunState.COMPLETE
+    assert plan_run.current_step_index == 1
 
 
-def test_runner_execute_workflow_edge_cases(runner: Runner) -> None:
+def test_portia_execute_run_edge_cases(portia: Portia) -> None:
     """Test edge cases for execute."""
     with pytest.raises(ValueError):  # noqa: PT011
-        runner.execute_workflow()
+        portia.execute_plan_run()
 
     query = "example query"
     mock_response = StepsOrError(
@@ -211,74 +211,81 @@ def test_runner_execute_workflow_edge_cases(runner: Runner) -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = runner.generate_plan(query)
-    workflow = runner.create_workflow(plan)
+    plan = portia.plan_query(query)
+    plan_run = portia.create_plan_run(plan)
 
-    # Simulate workflow being in progress
-    workflow.state = WorkflowState.IN_PROGRESS
-    workflow.current_step_index = 1
-    workflow = runner.execute_workflow(workflow_id=workflow.id)
+    # Simulate run being in progress
+    plan_run.state = PlanRunState.IN_PROGRESS
+    plan_run.current_step_index = 1
+    plan_run = portia.execute_plan_run(plan_run_id=plan_run.id)
 
-    assert workflow.state == WorkflowState.COMPLETE
-    assert workflow.current_step_index == 1
+    assert plan_run.state == PlanRunState.COMPLETE
+    assert plan_run.current_step_index == 1
 
-    with pytest.raises(WorkflowNotFoundError):
-        runner.execute_workflow(workflow_id=WorkflowUUID())
+    with pytest.raises(PlanRunNotFoundError):
+        portia.execute_plan_run(plan_run_id=PlanRunUUID())
 
 
-def test_runner_execute_workflow_invalid_state(runner: Runner) -> None:
-    """Test resuming a workflow with an invalid state."""
+def test_portia_execute_run_invalid_state(portia: Portia) -> None:
+    """Test resuming a run with an invalid state."""
     query = "example query"
 
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = runner.generate_plan(query)
-    workflow = runner.create_workflow(plan)
-    workflow = runner.execute_workflow(workflow)
+    plan = portia.plan_query(query)
+    plan_run = portia.create_plan_run(plan)
+    plan_run = portia.execute_plan_run(plan_run)
 
     # Set invalid state
-    workflow.state = WorkflowState.COMPLETE
+    plan_run.state = PlanRunState.COMPLETE
 
-    with pytest.raises(InvalidWorkflowStateError):
-        runner.execute_workflow(workflow)
+    with pytest.raises(InvalidRunStateError):
+        portia.execute_plan_run(plan_run)
 
 
-def test_runner_wait_for_ready(runner: Runner) -> None:
+def test_portia_wait_for_ready(portia: Portia) -> None:
     """Test wait for ready."""
     query = "example query"
 
-    mock_response = StepsOrError(steps=[], error=None)
+    mock_response = StepsOrError(
+        steps=[Step(task="Example task", inputs=[], output="$output")],
+        error=None,
+    )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = runner.generate_plan(query)
-    workflow = runner.create_workflow(plan)
+    plan = portia.plan_query(query)
+    plan_run = portia.create_plan_run(plan)
 
-    workflow.state = WorkflowState.FAILED
-    with pytest.raises(InvalidWorkflowStateError):
-        runner.wait_for_ready(workflow)
+    plan_run.state = PlanRunState.FAILED
+    with pytest.raises(InvalidRunStateError):
+        portia.wait_for_ready(plan_run)
 
-    workflow.state = WorkflowState.IN_PROGRESS
-    workflow = runner.wait_for_ready(workflow)
-    assert workflow.state == WorkflowState.IN_PROGRESS
+    plan_run.state = PlanRunState.IN_PROGRESS
+    plan_run = portia.wait_for_ready(plan_run)
+    assert plan_run.state == PlanRunState.IN_PROGRESS
 
-    def update_workflow_state() -> None:
-        """Update the workflow state after sleeping."""
+    def update_run_state() -> None:
+        """Update the run state after sleeping."""
         time.sleep(1)  # Simulate some delay before state changes
-        workflow.state = WorkflowState.READY_TO_RESUME
-        runner.storage.save_workflow(workflow)
+        plan_run.state = PlanRunState.READY_TO_RESUME
+        portia.storage.save_plan_run(plan_run)
 
-    workflow.state = WorkflowState.NEED_CLARIFICATION
+    plan_run.state = PlanRunState.NEED_CLARIFICATION
+
+    # Ensure current_step_index is set to a valid index
+    plan_run.current_step_index = 0
+    portia.storage.save_plan_run(plan_run)
 
     # start a thread to update in status
-    update_thread = threading.Thread(target=update_workflow_state)
+    update_thread = threading.Thread(target=update_run_state)
     update_thread.start()
 
-    workflow = runner.wait_for_ready(workflow)
-    assert workflow.state == WorkflowState.READY_TO_RESUME
+    plan_run = portia.wait_for_ready(plan_run)
+    assert plan_run.state == PlanRunState.READY_TO_RESUME
 
 
-def test_runner_wait_for_ready_tool(runner: Runner) -> None:
+def test_portia_wait_for_ready_tool(portia: Portia) -> None:
     """Test wait for ready."""
     mock_call_count = MagicMock()
     mock_call_count.__iadd__ = (
@@ -304,7 +311,7 @@ def test_runner_wait_for_ready_tool(runner: Runner) -> None:
             mock_call_count.count += 1
             return mock_call_count.count == 3
 
-    runner.tool_registry = InMemoryToolRegistry.from_local_tools([ReadyTool()])
+    portia.tool_registry = InMemoryToolRegistry.from_local_tools([ReadyTool()])
     step0 = Step(
         task="Do something",
         inputs=[],
@@ -324,26 +331,26 @@ def test_runner_wait_for_ready_tool(runner: Runner) -> None:
         steps=[step0, step1],
     )
     unresolved_action = ActionClarification(
-        workflow_id=WorkflowUUID(),
+        plan_run_id=PlanRunUUID(),
         user_guidance="",
         action_url=HttpUrl("https://unresolved.step1.com"),
         step=1,
     )
-    workflow = Workflow(
+    plan_run = PlanRun(
         plan_id=plan.id,
         current_step_index=1,
-        state=WorkflowState.NEED_CLARIFICATION,
-        outputs=WorkflowOutputs(
+        state=PlanRunState.NEED_CLARIFICATION,
+        outputs=PlanRunOutputs(
             clarifications=[
                 ActionClarification(
-                    workflow_id=WorkflowUUID(),
+                    plan_run_id=PlanRunUUID(),
                     user_guidance="",
                     action_url=HttpUrl("https://resolved.step0.com"),
                     resolved=True,
                     step=0,
                 ),
                 ActionClarification(
-                    workflow_id=WorkflowUUID(),
+                    plan_run_id=PlanRunUUID(),
                     user_guidance="",
                     action_url=HttpUrl("https://resolved.step1.com"),
                     resolved=True,
@@ -353,20 +360,20 @@ def test_runner_wait_for_ready_tool(runner: Runner) -> None:
             ],
         ),
     )
-    runner.storage.save_plan(plan)
-    runner.storage.save_workflow(workflow)
-    assert workflow.get_outstanding_clarifications() == [unresolved_action]
-    workflow = runner.wait_for_ready(workflow)
-    assert workflow.state == WorkflowState.READY_TO_RESUME
-    assert workflow.get_outstanding_clarifications() == []
-    for clarification in workflow.outputs.clarifications:
+    portia.storage.save_plan(plan)
+    portia.storage.save_plan_run(plan_run)
+    assert plan_run.get_outstanding_clarifications() == [unresolved_action]
+    plan_run = portia.wait_for_ready(plan_run)
+    assert plan_run.state == PlanRunState.READY_TO_RESUME
+    assert plan_run.get_outstanding_clarifications() == []
+    for clarification in plan_run.outputs.clarifications:
         if clarification.step == 1:
             assert clarification.resolved
             assert clarification.response == "complete"
 
 
-def test_get_clarifications_and_get_workflow_called_once(runner: Runner) -> None:
-    """Test that get_clarifications_for_step is called once after get_workflow."""
+def test_get_clarifications_and_get_run_called_once(portia: Portia) -> None:
+    """Test that get_clarifications_for_step is called once after get_plan_run."""
     query = "example query"
     mock_response = StepsOrError(
         steps=[Step(task="Example task", inputs=[], output="$output")],
@@ -374,41 +381,41 @@ def test_get_clarifications_and_get_workflow_called_once(runner: Runner) -> None
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = runner.generate_plan(query)
-    workflow = runner.create_workflow(plan)
+    plan = portia.plan_query(query)
+    plan_run = portia.create_plan_run(plan)
 
-    # Set the workflow state to NEED_CLARIFICATION to ensure it goes through the wait logic
-    workflow.state = WorkflowState.NEED_CLARIFICATION
-    workflow.current_step_index = 0  # Set to a valid index
+    # Set the run state to NEED_CLARIFICATION to ensure it goes through the wait logic
+    plan_run.state = PlanRunState.NEED_CLARIFICATION
+    plan_run.current_step_index = 0  # Set to a valid index
 
     # Mock the storage methods
     with (
         mock.patch.object(
-            runner.storage,
-            "get_workflow",
-            return_value=workflow,
-        ) as mock_get_workflow,
+            portia.storage,
+            "get_plan_run",
+            return_value=plan_run,
+        ) as mock_get_plan_run,
         mock.patch.object(
-            Workflow,
+            PlanRun,
             "get_clarifications_for_step",
             return_value=[],
         ) as mock_get_clarifications,
     ):
         # Call wait_for_ready
-        runner.wait_for_ready(workflow)
+        portia.wait_for_ready(plan_run)
 
-        # Assert that get_workflow was called once
-        mock_get_workflow.assert_called_once_with(workflow.id)
+        # Assert that get_run was called once
+        mock_get_plan_run.assert_called_once_with(plan_run.id)
 
-        # Assert that get_clarifications_for_step was called once after get_workflow
+        # Assert that get_clarifications_for_step was called once after get_run
         mock_get_clarifications.assert_called_once()
 
 
-def test_runner_execute_query_with_summary(runner: Runner) -> None:
+def test_portia_execute_query_with_summary(portia: Portia) -> None:
     """Test execute_query sets both final output and summary correctly."""
     query = "What activities can I do in London based on weather?"
 
-    # Mock planner response
+    # Mock planning_agent response
     weather_step = Step(
         task="Get weather in London",
         tool_id="add_tool",
@@ -438,35 +445,35 @@ def test_runner_execute_query_with_summary(runner: Runner) -> None:
 
     with (
         mock.patch(
-            "portia.runner.FinalOutputSummarizer",
+            "portia.portia.FinalOutputSummarizer",
             return_value=mock_summarizer_agent,
         ),
-        mock.patch.object(runner, "_get_agent_for_step", return_value=mock_step_agent),
+        mock.patch.object(portia, "_get_agent_for_step", return_value=mock_step_agent),
     ):
-        workflow = runner.execute_query(query)
+        plan_run = portia.run_query(query)
 
-        # Verify workflow completed successfully
-        assert workflow.state == WorkflowState.COMPLETE
+        # Verify run completed successfully
+        assert plan_run.state == PlanRunState.COMPLETE
 
         # Verify step outputs were stored correctly
-        assert workflow.outputs.step_outputs["$weather"] == weather_output
-        assert workflow.outputs.step_outputs["$activities"] == activities_output
+        assert plan_run.outputs.step_outputs["$weather"] == weather_output
+        assert plan_run.outputs.step_outputs["$activities"] == activities_output
 
         # Verify final output and summary
-        assert workflow.outputs.final_output is not None
-        assert workflow.outputs.final_output.value == activities_output.value
-        assert workflow.outputs.final_output.summary == expected_summary
+        assert plan_run.outputs.final_output is not None
+        assert plan_run.outputs.final_output.value == activities_output.value
+        assert plan_run.outputs.final_output.summary == expected_summary
 
         # Verify create_summary was called with correct args
         mock_summarizer_agent.create_summary.assert_called_once_with(
             plan=mock.ANY,
-            workflow=mock.ANY,
+            plan_run=mock.ANY,
         )
 
 
-def test_runner_sets_final_output_with_summary(runner: Runner) -> None:
+def test_portia_sets_final_output_with_summary(portia: Portia) -> None:
     """Test that final output is set with correct summary."""
-    (plan, workflow) = get_test_workflow()
+    (plan, plan_run) = get_test_plan_run()
     plan.steps = [
         Step(
             task="Get weather in London",
@@ -478,7 +485,7 @@ def test_runner_sets_final_output_with_summary(runner: Runner) -> None:
         ),
     ]
 
-    workflow.outputs.step_outputs = {
+    plan_run.outputs.step_outputs = {
         "$london_weather": Output(value="Sunny and warm"),
         "$activities": Output(value="Visit Hyde Park and have a picnic"),
     }
@@ -488,11 +495,11 @@ def test_runner_sets_final_output_with_summary(runner: Runner) -> None:
     mock_summarizer.create_summary.side_effect = [expected_summary]
 
     with mock.patch(
-        "portia.runner.FinalOutputSummarizer",
+        "portia.portia.FinalOutputSummarizer",
         return_value=mock_summarizer,
     ):
         last_step_output = Output(value="Visit Hyde Park and have a picnic")
-        output = runner._get_final_output(plan, workflow, last_step_output)  # noqa: SLF001
+        output = portia._get_final_output(plan, plan_run, last_step_output)  # noqa: SLF001
 
         # Verify the final output
         assert output is not None
@@ -503,25 +510,25 @@ def test_runner_sets_final_output_with_summary(runner: Runner) -> None:
         mock_summarizer.create_summary.assert_called_once()
         call_args = mock_summarizer.create_summary.call_args[1]
         assert isinstance(call_args["plan"], ReadOnlyPlan)
-        assert isinstance(call_args["workflow"], ReadOnlyWorkflow)
+        assert isinstance(call_args["plan_run"], ReadOnlyPlanRun)
         assert call_args["plan"].id == plan.id
-        assert call_args["workflow"].id == workflow.id
+        assert call_args["plan_run"].id == plan_run.id
 
 
-def test_runner_get_final_output_handles_summary_error(runner: Runner) -> None:
+def test_portia_get_final_output_handles_summary_error(portia: Portia) -> None:
     """Test that final output is set even if summary generation fails."""
-    (plan, workflow) = get_test_workflow()
+    (plan, plan_run) = get_test_plan_run()
 
     # Mock the SummarizerAgent to raise an exception
     mock_agent = mock.MagicMock()
     mock_agent.create_summary.side_effect = Exception("Summary failed")
 
     with mock.patch(
-        "portia.agents.utils.final_output_summarizer.FinalOutputSummarizer",
+        "portia.execution_agents.utils.final_output_summarizer.FinalOutputSummarizer",
         return_value=mock_agent,
     ):
         step_output = Output(value="Some output")
-        final_output = runner._get_final_output(plan, workflow, step_output)  # noqa: SLF001
+        final_output = portia._get_final_output(plan, plan_run, step_output)  # noqa: SLF001
 
         # Verify the final output is set without summary
         assert final_output is not None
@@ -529,66 +536,66 @@ def test_runner_get_final_output_handles_summary_error(runner: Runner) -> None:
         assert final_output.summary is None
 
 
-def test_runner_wait_for_ready_max_retries(runner: Runner) -> None:
+def test_portia_wait_for_ready_max_retries(portia: Portia) -> None:
     """Test wait for ready with max retries."""
-    plan, workflow = get_test_workflow()
-    workflow.state = WorkflowState.NEED_CLARIFICATION
-    runner.storage.save_plan(plan)
-    runner.storage.save_workflow(workflow)
-    with pytest.raises(InvalidWorkflowStateError):
-        runner.wait_for_ready(workflow, max_retries=0)
+    plan, plan_run = get_test_plan_run()
+    plan_run.state = PlanRunState.NEED_CLARIFICATION
+    portia.storage.save_plan(plan)
+    portia.storage.save_plan_run(plan_run)
+    with pytest.raises(InvalidRunStateError):
+        portia.wait_for_ready(plan_run, max_retries=0)
 
 
-def test_runner_wait_for_ready_backoff_period(runner: Runner) -> None:
+def test_portia_wait_for_ready_backoff_period(portia: Portia) -> None:
     """Test wait for ready with backoff period."""
-    plan, workflow = get_test_workflow()
-    workflow.state = WorkflowState.NEED_CLARIFICATION
-    runner.storage.save_plan(plan)
-    runner.storage.get_workflow = mock.MagicMock(return_value=workflow)
-    with pytest.raises(InvalidWorkflowStateError):
-        runner.wait_for_ready(workflow, max_retries=1, backoff_start_time_seconds=0)
+    plan, plan_run = get_test_plan_run()
+    plan_run.state = PlanRunState.NEED_CLARIFICATION
+    portia.storage.save_plan(plan)
+    portia.storage.get_plan_run = mock.MagicMock(return_value=plan_run)
+    with pytest.raises(InvalidRunStateError):
+        portia.wait_for_ready(plan_run, max_retries=1, backoff_start_time_seconds=0)
 
 
-def test_runner_resolve_clarification_error(runner: Runner) -> None:
+def test_portia_resolve_clarification_error(portia: Portia) -> None:
     """Test resolve error."""
-    plan, workflow = get_test_workflow()
-    plan2, workflow2 = get_test_workflow()
+    plan, plan_run = get_test_plan_run()
+    plan2, plan_run2 = get_test_plan_run()
     clarification = InputClarification(
         user_guidance="",
         argument_name="",
-        workflow_id=workflow2.id,
+        plan_run_id=plan_run2.id,
     )
-    runner.storage.save_plan(plan)
-    runner.storage.save_workflow(workflow)
-    runner.storage.save_plan(plan2)
-    runner.storage.save_workflow(workflow2)
-    with pytest.raises(InvalidWorkflowStateError):
-        runner.resolve_clarification(clarification, "test")
+    portia.storage.save_plan(plan)
+    portia.storage.save_plan_run(plan_run)
+    portia.storage.save_plan(plan2)
+    portia.storage.save_plan_run(plan_run2)
+    with pytest.raises(InvalidRunStateError):
+        portia.resolve_clarification(clarification, "test")
 
-    with pytest.raises(InvalidWorkflowStateError):
-        runner.resolve_clarification(clarification, "test", workflow)
+    with pytest.raises(InvalidRunStateError):
+        portia.resolve_clarification(clarification, "test", plan_run)
 
 
-def test_runner_resolve_clarification(runner: Runner) -> None:
+def test_portia_resolve_clarification(portia: Portia) -> None:
     """Test resolve success."""
-    plan, workflow = get_test_workflow()
+    plan, plan_run = get_test_plan_run()
     clarification = InputClarification(
         user_guidance="",
         argument_name="",
-        workflow_id=workflow.id,
+        plan_run_id=plan_run.id,
     )
-    workflow.outputs.clarifications = [clarification]
-    runner.storage.save_plan(plan)
-    runner.storage.save_workflow(workflow)
+    plan_run.outputs.clarifications = [clarification]
+    portia.storage.save_plan(plan)
+    portia.storage.save_plan_run(plan_run)
 
-    workflow = runner.resolve_clarification(clarification, "test", workflow)
-    assert workflow.state == WorkflowState.READY_TO_RESUME
+    plan_run = portia.resolve_clarification(clarification, "test", plan_run)
+    assert plan_run.state == PlanRunState.READY_TO_RESUME
 
 
-def test_runner_get_tool_for_step_none_tool_id() -> None:
+def test_portia_get_tool_for_step_none_tool_id() -> None:
     """Test that when step.tool_id is None, LLMTool is used as fallback."""
-    runner = Runner(config=get_test_config(), tools=[AdditionTool()])
-    plan, workflow = get_test_workflow()
+    portia = Portia(config=get_test_config(), tools=[AdditionTool()])
+    plan, plan_run = get_test_plan_run()
 
     # Create a step with no tool_id
     step = Step(
@@ -598,14 +605,14 @@ def test_runner_get_tool_for_step_none_tool_id() -> None:
         tool_id=None,
     )
 
-    tool = runner._get_tool_for_step(step, workflow)  # noqa: SLF001
+    tool = portia._get_tool_for_step(step, plan_run)  # noqa: SLF001
     assert tool is None
 
 
 def test_get_llm_tool() -> None:
     """Test special case retrieval of LLMTool as it isn't explicitly in most tool registries."""
-    runner = Runner(config=get_test_config(), tools=example_tool_registry)
-    plan, workflow = get_test_workflow()
+    portia = Portia(config=get_test_config(), tools=example_tool_registry)
+    plan, plan_run = get_test_plan_run()
 
     # Create a step with no tool_id
     step = Step(
@@ -615,6 +622,6 @@ def test_get_llm_tool() -> None:
         tool_id=LLMTool.LLM_TOOL_ID,
     )
 
-    tool = runner._get_tool_for_step(step, workflow)  # noqa: SLF001
+    tool = portia._get_tool_for_step(step, plan_run)  # noqa: SLF001
     assert tool is not None
     assert isinstance(tool._child_tool, LLMTool)  # noqa: SLF001 # pyright: ignore[reportAttributeAccessIssue]
