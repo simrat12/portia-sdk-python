@@ -310,7 +310,8 @@ class Config(BaseModel):
         default_factory=lambda: StorageClass.CLOUD
         if os.getenv("PORTIA_API_KEY")
         else StorageClass.MEMORY,
-        description="Where to store Plans and Workflows. By default these will be kept in memory.",
+        description="Where to store Plans and PlanRuns. By default these will be kept in memory"
+        "if no API key is provided.",
     )
 
     @field_validator("storage_class", mode="before")

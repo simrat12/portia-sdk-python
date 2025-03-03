@@ -56,7 +56,7 @@ def test_portia_no_execution_context_new() -> None:
     portia = Portia(tools=tool_registry, config=default_config(storage_class=StorageClass.MEMORY))
     (plan, plan_run) = get_test_plan_run()
     portia.storage.save_plan(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.resume(plan_run)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert tool.tool_context
@@ -71,7 +71,7 @@ def test_portia_no_execution_context_existing() -> None:
     (plan, plan_run) = get_test_plan_run()
     plan_run.execution_context = ExecutionContext(end_user_id="123")
     portia.storage.save_plan(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.resume(plan_run)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert tool.tool_context
@@ -88,7 +88,7 @@ def test_portia_with_execution_context_new() -> None:
     portia.storage.save_plan(plan)
 
     with execution_context(end_user_id="123"):
-        plan_run = portia.execute_plan_run(plan_run)
+        plan_run = portia.resume(plan_run)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert tool.tool_context
@@ -106,7 +106,7 @@ def test_portia_with_execution_context_existing() -> None:
     portia.storage.save_plan(plan)
 
     with execution_context(end_user_id="123"):
-        plan_run = portia.execute_plan_run(plan_run)
+        plan_run = portia.resume(plan_run)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert tool.tool_context

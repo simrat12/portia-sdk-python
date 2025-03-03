@@ -30,7 +30,7 @@ def test_in_memory_storage_save_and_get_plan() -> None:
 
 
 def test_in_memory_storage_save_and_get_plan_run() -> None:
-    """Test saving and retrieving a Run in InMemoryStorage."""
+    """Test saving and retrieving PlanRun in InMemoryStorage."""
     storage = InMemoryStorage()
     plan = Plan(plan_context=PlanContext(query="query", tool_ids=[]), steps=[])
     plan_run = PlanRun(plan_id=plan.id)
@@ -57,7 +57,7 @@ def test_disk_file_storage_save_and_get_plan(tmp_path: Path) -> None:
 
 
 def test_disk_file_storage_save_and_get_plan_run(tmp_path: Path) -> None:
-    """Test saving and retrieving a Run in DiskFileStorage."""
+    """Test saving and retrieving PlanRun in DiskFileStorage."""
     storage = DiskFileStorage(storage_dir=str(tmp_path))
     plan = Plan(
         plan_context=PlanContext(query="query", tool_ids=[]),
@@ -74,7 +74,7 @@ def test_disk_file_storage_save_and_get_plan_run(tmp_path: Path) -> None:
 
 
 def test_disk_file_storage_save_and_get_plan_runs(tmp_path: Path) -> None:
-    """Test saving and retrieving a Run in DiskFileStorage."""
+    """Test saving and retrieving PlanRun in DiskFileStorage."""
     storage = DiskFileStorage(storage_dir=str(tmp_path))
     plan = Plan(
         plan_context=PlanContext(query="query", tool_ids=[]),

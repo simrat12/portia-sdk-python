@@ -30,11 +30,11 @@ from portia.clarification import (
 )
 from portia.config import Config, ExecutionAgentType, PlanningAgentType, StorageClass
 from portia.errors import (
-    InvalidRunStateError,
+    InvalidPlanRunStateError,
     PlanError,
 )
-from portia.execution_agents.base_agent import Output
-from portia.execution_agents.execution_agent import DefaultExecutionAgent
+from portia.execution_agents.base_execution_agent import Output
+from portia.execution_agents.default_execution_agent import DefaultExecutionAgent
 from portia.execution_agents.one_shot_agent import OneShotAgent
 from portia.execution_agents.utils.final_output_summarizer import FinalOutputSummarizer
 from portia.execution_context import (
@@ -58,7 +58,7 @@ from portia.tool_wrapper import ToolCallWrapper
 
 if TYPE_CHECKING:
     from portia.clarification_handler import ClarificationHandler
-    from portia.execution_agents.base_agent import BaseExecutionAgent
+    from portia.execution_agents.base_execution_agent import BaseExecutionAgent
     from portia.planning_agents.base_planning_agent import BasePlanningAgent
     from portia.tool import Tool
 
@@ -119,7 +119,7 @@ class Portia:
             case StorageClass.CLOUD:
                 self.storage = PortiaCloudStorage(config=self.config)
 
-    def run_query(
+    def run(
         self,
         query: str,
         tools: list[Tool] | list[str] | None = None,
@@ -140,11 +140,11 @@ class Portia:
             PlanRun: The run resulting from executing the query.
 
         """
-        plan = self.plan_query(query, tools, example_plans)
-        plan_run = self.create_plan_run(plan)
-        return self.execute_plan_run(plan_run)
+        plan = self.plan(query, tools, example_plans)
+        plan_run = self._create_plan_run(plan)
+        return self.resume(plan_run)
 
-    def plan_query(
+    def plan(
         self,
         query: str,
         tools: list[Tool] | list[str] | None = None,
@@ -206,30 +206,25 @@ class Portia:
 
         return plan
 
-    def create_plan_run(self, plan: Plan) -> PlanRun:
-        """Create a run from a Plan.
+    def run_plan(self, plan: Plan) -> PlanRun:
+        """Run a plan.
 
         Args:
-            plan (Plan): The plan to create a run from.
+            plan (Plan): The plan to run.
 
         Returns:
-            Run: The created plan_run.
+            PlanRun: The resulting PlanRun object.
 
         """
-        plan_run = PlanRun(
-            plan_id=plan.id,
-            state=PlanRunState.NOT_STARTED,
-            execution_context=get_execution_context(),
-        )
-        self.storage.save_plan_run(plan_run)
-        return plan_run
+        plan_run = self._create_plan_run(plan)
+        return self.resume(plan_run)
 
-    def execute_plan_run(
+    def resume(
         self,
         plan_run: PlanRun | None = None,
         plan_run_id: PlanRunUUID | str | None = None,
     ) -> PlanRun:
-        """Run a PlanRun.
+        """Resume a PlanRun.
 
         If a clarification handler was provided as part of the execution hooks, it will be used
         to handle any clarifications that are raised during the execution of the plan run.
@@ -238,8 +233,8 @@ class Portia:
         by the caller before the plan run is resumed.
 
         Args:
-            plan_run (PlanRun | None): The PlanRun to execute. Defaults to None.
-            plan_run_id (RunUUID | str | None): The ID of the PlanRun to execute. Defaults to
+            plan_run (PlanRun | None): The PlanRun to resume. Defaults to None.
+            plan_run_id (RunUUID | str | None): The ID of the PlanRun to resume. Defaults to
                 None.
 
         Returns:
@@ -247,12 +242,12 @@ class Portia:
 
         Raises:
             ValueError: If neither plan_run nor plan_run_id is provided.
-            InvalidRunStateError: If the plan run is not in a valid state to be executed.
+            InvalidPlanRunStateError: If the plan run is not in a valid state to be resumed.
 
         """
         if not plan_run:
             if not plan_run_id:
-                raise ValueError("Either run or plan_run_id must be provided")
+                raise ValueError("Either plan_run or plan_run_id must be provided")
 
             parsed_id = (
                 PlanRunUUID.from_string(plan_run_id)
@@ -267,7 +262,7 @@ class Portia:
             PlanRunState.NEED_CLARIFICATION,
             PlanRunState.READY_TO_RESUME,
         ]:
-            raise InvalidRunStateError(plan_run.id)
+            raise InvalidPlanRunStateError(plan_run.id)
 
         plan = self.storage.get_plan(plan_id=plan_run.plan_id)
 
@@ -337,7 +332,7 @@ class Portia:
         )
 
         if not matched_clarification:
-            raise InvalidRunStateError("Could not match clarification to run")
+            raise InvalidPlanRunStateError("Could not match clarification to run")
 
         matched_clarification.resolved = True
         matched_clarification.response = response
@@ -398,7 +393,7 @@ class Portia:
             PlanRunState.READY_TO_RESUME,
             PlanRunState.NEED_CLARIFICATION,
         ]:
-            raise InvalidRunStateError("Cannot wait for run that is not ready to run")
+            raise InvalidPlanRunStateError("Cannot wait for run that is not ready to run")
 
         # These states can continue straight away
         if plan_run.state in [
@@ -413,7 +408,7 @@ class Portia:
         current_step_clarifications = plan_run.get_clarifications_for_step()
         while plan_run.state != PlanRunState.READY_TO_RESUME:
             if tries >= max_retries:
-                raise InvalidRunStateError("Run is not ready to resume after max retries")
+                raise InvalidPlanRunStateError("Run is not ready to resume after max retries")
 
             # if we've waited longer than the backoff time, start the backoff period
             if time.time() - start_time > backoff_start_time_seconds:
@@ -448,6 +443,24 @@ class Portia:
 
         logger().info(f"Run {plan_run.id} is ready to resume")
 
+        return plan_run
+
+    def _create_plan_run(self, plan: Plan) -> PlanRun:
+        """Create a PlanRun from a Plan.
+
+        Args:
+            plan (Plan): The plan to create a plan run from.
+
+        Returns:
+            PlanRun: The created PlanRun object.
+
+        """
+        plan_run = PlanRun(
+            plan_id=plan.id,
+            state=PlanRunState.NOT_STARTED,
+            execution_context=get_execution_context(),
+        )
+        self.storage.save_plan_run(plan_run)
         return plan_run
 
     def _execute_plan_run(self, plan: Plan, plan_run: PlanRun) -> PlanRun:

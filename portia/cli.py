@@ -267,15 +267,14 @@ def run(
     )
 
     with execution_context(end_user_id=cli_config.end_user_id):
-        plan = portia.plan_query(query)
+        plan = portia.plan(query)
 
         if cli_config.confirm:
             click.echo(plan.model_dump_json(indent=4))
             if not click.confirm("Do you want to execute the plan?"):
                 return
 
-        plan_run = portia.create_plan_run(plan)
-        plan_run = portia.execute_plan_run(plan_run)
+        plan_run = portia.run(query)
         click.echo(plan_run.model_dump_json(indent=4))
 
 
@@ -291,7 +290,7 @@ def plan(
     portia = Portia(config=config)
 
     with execution_context(end_user_id=cli_config.end_user_id):
-        output = portia.plan_query(query)
+        output = portia.plan(query)
 
     click.echo(output.model_dump_json(indent=4))
 

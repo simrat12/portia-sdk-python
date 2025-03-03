@@ -15,8 +15,8 @@ from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from portia.clarification import Clarification, InputClarification
-from portia.errors import InvalidAgentError, InvalidRunStateError
-from portia.execution_agents.base_agent import BaseExecutionAgent, Output
+from portia.errors import InvalidAgentError, InvalidPlanRunStateError
+from portia.execution_agents.base_execution_agent import BaseExecutionAgent, Output
 from portia.execution_agents.execution_utils import (
     MAX_RETRIES,
     AgentNode,
@@ -201,7 +201,7 @@ class ParserModel:
 
         """
         if not self.agent.tool:
-            raise InvalidRunStateError(None)
+            raise InvalidPlanRunStateError(None)
         model = self.llm.with_structured_output(ToolInputs)
         response = model.invoke(
             self.arg_parser_prompt.format_messages(
@@ -435,7 +435,7 @@ class ToolCallingModel:
         """
         verified_args = self.agent.verified_args
         if not verified_args:
-            raise InvalidRunStateError
+            raise InvalidPlanRunStateError
         # handle any clarifications before calling
         if self.agent and self.agent.plan_run.outputs.clarifications:
             for arg in verified_args.args:

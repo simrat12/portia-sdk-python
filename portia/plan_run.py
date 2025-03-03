@@ -1,7 +1,7 @@
-"""Runs are executing instances of a Plan.
+"""Plan runs are executing instances of a Plan.
 
-A run encapsulates all execution state, serving as the definitive record of its progress.
-As the run runs, its `RunState`, `current_step_index`, and `outputs` evolve to reflect
+A plan run encapsulates all execution state, serving as the definitive record of its progress.
+As the run runs, its `PlanRunState`, `current_step_index`, and `outputs` evolve to reflect
 the current execution state.
 
 The run also retains an `ExecutionContext`, which provides valuable insights for debugging
@@ -23,13 +23,13 @@ from portia.clarification import (
     ClarificationListType,
 )
 from portia.common import PortiaEnum
-from portia.execution_agents.base_agent import Output
+from portia.execution_agents.base_execution_agent import Output
 from portia.execution_context import ExecutionContext, empty_context
 from portia.prefixed_uuid import PlanRunUUID, PlanUUID
 
 
 class PlanRunState(PortiaEnum):
-    """The current state of the Run.
+    """The current state of the Plan Run.
 
     Attributes:
         NOT_STARTED: The run has not been started yet.
@@ -79,15 +79,15 @@ class PlanRunOutputs(BaseModel):
 
 
 class PlanRun(BaseModel):
-    """A run represents a running instance of a Plan.
+    """A plan run represents a running instance of a Plan.
 
     Attributes:
-        id (WorfklowUUID): A unique ID for this plan_run.
+        id (PlanRunUUID): A unique ID for this plan_run.
         plan_id (PlanUUID): The ID of the Plan this run uses.
         current_step_index (int): The current step that is being executed.
-        state (RunState): The current state of the PlanRun.
+        state (PlanRunState): The current state of the PlanRun.
         execution_context (ExecutionContext): Execution context for the PlanRun.
-        outputs (RunOutputs): Outputs of the PlanRun including clarifications.
+        outputs (PlanRunOutputs): Outputs of the PlanRun including clarifications.
 
     """
 
@@ -165,7 +165,7 @@ class PlanRun(BaseModel):
 class ReadOnlyPlanRun(PlanRun):
     """A read-only copy of a Plan Run passed to agents for reference.
 
-    This class provides a non-modifiable view of a run instance,
+    This class provides a non-modifiable view of a plan run instance,
     ensuring that agents can access run details without altering them.
     """
 
@@ -173,13 +173,13 @@ class ReadOnlyPlanRun(PlanRun):
 
     @classmethod
     def from_plan_run(cls, plan_run: PlanRun) -> ReadOnlyPlanRun:
-        """Create a read-only run from a normal plan_run.
+        """Create a read-only plan run from a normal PlanRun.
 
         Args:
             plan_run (PlanRun): The original run instance to create a read-only copy from.
 
         Returns:
-            ReadOnlyRun: A new read-only instance of the provided plan_run.
+            ReadOnlyPlanRun: A new read-only instance of the provided PlanRun.
 
         """
         return cls(

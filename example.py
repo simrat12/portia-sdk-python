@@ -1,11 +1,14 @@
 """Simple Example."""
 
+from portia import (
+    Config,
+    LogLevel,
+    PlanRunState,
+    Portia,
+    example_tool_registry,
+    execution_context,
+)
 from portia.cli import CLIExecutionHooks
-from portia.config import Config, LogLevel
-from portia.execution_context import execution_context
-from portia.open_source_tools.registry import example_tool_registry
-from portia.plan_run import PlanRunState
-from portia.portia import Portia
 
 portia = Portia(
     Config.from_default(default_log_level=LogLevel.DEBUG),
@@ -14,19 +17,19 @@ portia = Portia(
 
 
 # Simple Example
-plan_run = portia.run_query(
+plan_run = portia.run(
     "Get the temperature in London and Sydney and then add the two temperatures rounded to 2DP",
 )
 
 # We can also provide additional execution context to the process
 with execution_context(end_user_id="123", additional_data={"email_address": "hello@portialabs.ai"}):
-    plan = portia.run_query(
+    plan = portia.run(
         "Get the temperature in London and Sydney and then add the two temperatures rounded to 2DP",
     )
 
 # When we hit a clarification we can ask our end user for clarification then resume the process
 with execution_context(end_user_id="123", additional_data={"email_address": "hello@portialabs.ai"}):
-    plan_run = portia.run_query(
+    plan_run = portia.run(
         "Get the temperature in London and Sydney and then add the two temperatures rounded to 2DP",
     )
 
@@ -46,7 +49,7 @@ if plan_run.state == PlanRunState.NEED_CLARIFICATION:
 
 # Execute again with the same execution context
 with execution_context(context=plan_run.execution_context):
-    portia.execute_plan_run(plan_run)
+    portia.resume(plan_run)
 
 # You can also pass in a clarification handler to manage clarifications
 portia = Portia(
@@ -54,6 +57,6 @@ portia = Portia(
     tools=example_tool_registry,
     execution_hooks=CLIExecutionHooks(),
 )
-plan_run = portia.run_query(
+plan_run = portia.run(
     "Get the temperature in London and Sydney and then add the two temperatures rounded to 2DP",
 )

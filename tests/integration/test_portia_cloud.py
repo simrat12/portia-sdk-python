@@ -26,7 +26,7 @@ def test_portia_run_query_with_cloud() -> None:
     portia = Portia(config=config)
     query = "Where is the next Olympics being hosted?"
 
-    plan_run = portia.run_query(query)
+    plan_run = portia.run(query)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert plan_run.outputs.final_output
@@ -69,7 +69,7 @@ def test_portia_run_query_with_cloud_and_local() -> None:
     portia = Portia(config=config, tools=registry)
     query = "Get the temperature in London and Sydney and then add the two temperatures together."
 
-    plan_run = portia.run_query(query)
+    plan_run = portia.run(query)
     assert plan_run.state == PlanRunState.COMPLETE
     assert plan_run.outputs.final_output
 
@@ -80,7 +80,7 @@ def test_portia_run_query_with_oauth() -> None:
     query = "Star the portiaai/portia-sdk-repo"
 
     with execution_context(end_user_id=str(uuid.uuid4())):
-        plan_run = portia.run_query(query)
+        plan_run = portia.run(query)
 
     assert plan_run.state == PlanRunState.NEED_CLARIFICATION
     assert len(plan_run.outputs.clarifications) == 1

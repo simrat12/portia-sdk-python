@@ -2,7 +2,7 @@
 
 from unittest import mock
 
-from portia.execution_agents.base_agent import Output
+from portia.execution_agents.base_execution_agent import Output
 from portia.execution_agents.utils.final_output_summarizer import FinalOutputSummarizer
 from portia.plan import Step
 from tests.utils import get_test_config, get_test_plan_run
