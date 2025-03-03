@@ -122,7 +122,7 @@ def test_portia_run_query_disk_storage() -> None:
         assert plan_run.state == PlanRunState.COMPLETE
         # Use Path to check for the files
         plan_files = list(Path(tmp_dir).glob("plan-*.json"))
-        run_files = list(Path(tmp_dir).glob("pr-*.json"))
+        run_files = list(Path(tmp_dir).glob("prun-*.json"))
 
         assert len(plan_files) == 1
         assert len(run_files) == 1
