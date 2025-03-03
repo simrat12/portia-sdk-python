@@ -102,7 +102,7 @@ class Portia:
             case StorageClass.CLOUD:
                 self.storage = PortiaCloudStorage(config=self.config)
 
-    def run_query(
+    def run(
         self,
         query: str,
         tools: list[Tool] | list[str] | None = None,
@@ -123,11 +123,11 @@ class Portia:
             PlanRun: The run resulting from executing the query.
 
         """
-        plan = self.plan_query(query, tools, example_plans)
+        plan = self.plan(query, tools, example_plans)
         plan_run = self.create_plan_run(plan)
         return self.execute_plan_run(plan_run)
 
-    def plan_query(
+    def plan(
         self,
         query: str,
         tools: list[Tool] | list[str] | None = None,

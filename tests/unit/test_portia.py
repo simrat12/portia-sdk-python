@@ -81,7 +81,7 @@ def test_portia_run_query(portia: Portia) -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan_run = portia.run_query(query)
+    plan_run = portia.run(query)
 
     assert plan_run.state == PlanRunState.COMPLETE
 
@@ -97,7 +97,7 @@ def test_portia_run_query_tool_list() -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan_run = portia.run_query(query)
+    plan_run = portia.run(query)
 
     assert plan_run.state == PlanRunState.COMPLETE
 
@@ -117,7 +117,7 @@ def test_portia_run_query_disk_storage() -> None:
         mock_response = StepsOrError(steps=[], error=None)
         LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-        plan_run = portia.run_query(query)
+        plan_run = portia.run(query)
 
         assert plan_run.state == PlanRunState.COMPLETE
         # Use Path to check for the files
@@ -135,7 +135,7 @@ def test_portia_generate_plan(portia: Portia) -> None:
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan_query(query)
+    plan = portia.plan(query)
 
     assert plan.plan_context.query == query
 
@@ -148,7 +148,7 @@ def test_portia_generate_plan_error(portia: Portia) -> None:
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
     with pytest.raises(PlanError):
-        portia.plan_query(query)
+        portia.plan(query)
 
 
 def test_portia_generate_plan_with_tools(portia: Portia) -> None:
@@ -158,7 +158,7 @@ def test_portia_generate_plan_with_tools(portia: Portia) -> None:
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan_query(query, tools=["add_tool"])
+    plan = portia.plan(query, tools=["add_tool"])
 
     assert plan.plan_context.query == query
     assert plan.plan_context.tool_ids == ["add_tool"]
@@ -171,7 +171,7 @@ def test_portia_create_and_execute_plan_run(portia: Portia) -> None:
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan_query(query)
+    plan = portia.plan(query)
     plan_run = portia.create_plan_run(plan)
     plan_run = portia.execute_plan_run(plan_run)
 
@@ -186,7 +186,7 @@ def test_portia_execute_plan_run(portia: Portia) -> None:
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan_query(query)
+    plan = portia.plan(query)
     plan_run = portia.create_plan_run(plan)
     plan_run = portia.execute_plan_run(plan_run)
 
@@ -211,7 +211,7 @@ def test_portia_execute_run_edge_cases(portia: Portia) -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan_query(query)
+    plan = portia.plan(query)
     plan_run = portia.create_plan_run(plan)
 
     # Simulate run being in progress
@@ -233,7 +233,7 @@ def test_portia_execute_run_invalid_state(portia: Portia) -> None:
     mock_response = StepsOrError(steps=[], error=None)
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan_query(query)
+    plan = portia.plan(query)
     plan_run = portia.create_plan_run(plan)
     plan_run = portia.execute_plan_run(plan_run)
 
@@ -254,7 +254,7 @@ def test_portia_wait_for_ready(portia: Portia) -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan_query(query)
+    plan = portia.plan(query)
     plan_run = portia.create_plan_run(plan)
 
     plan_run.state = PlanRunState.FAILED
@@ -381,7 +381,7 @@ def test_get_clarifications_and_get_run_called_once(portia: Portia) -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan_query(query)
+    plan = portia.plan(query)
     plan_run = portia.create_plan_run(plan)
 
     # Set the run state to NEED_CLARIFICATION to ensure it goes through the wait logic
@@ -450,7 +450,7 @@ def test_portia_run_query_with_summary(portia: Portia) -> None:
         ),
         mock.patch.object(portia, "_get_agent_for_step", return_value=mock_step_agent),
     ):
-        plan_run = portia.run_query(query)
+        plan_run = portia.run(query)
 
         # Verify run completed successfully
         assert plan_run.state == PlanRunState.COMPLETE
@@ -637,7 +637,7 @@ def test_portia_run_plan(portia: Portia) -> None:
     )
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
-    plan = portia.plan_query(query)
+    plan = portia.plan(query)
 
     # Mock the create_plan_run and execute_plan_run methods
     with mock.patch.object(portia, "create_plan_run") as mock_create_plan_run, \
