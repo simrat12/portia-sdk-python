@@ -8,7 +8,7 @@ from langgraph.graph import END, MessagesState
 
 from portia.clarification import InputClarification
 from portia.errors import InvalidAgentOutputError, ToolFailedError, ToolRetryError
-from portia.execution_agents.base_agent import Output
+from portia.execution_agents.base_execution_agent import Output
 from portia.execution_agents.execution_utils import (
     MAX_RETRIES,
     AgentNode,

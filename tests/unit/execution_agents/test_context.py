@@ -6,7 +6,7 @@ import pytest
 from pydantic import HttpUrl
 
 from portia.clarification import ActionClarification, InputClarification
-from portia.execution_agents.base_agent import Output
+from portia.execution_agents.base_execution_agent import Output
 from portia.execution_agents.context import build_context
 from portia.execution_context import ExecutionContext
 from portia.plan import Step, Variable

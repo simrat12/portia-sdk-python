@@ -184,15 +184,14 @@ def run(  # noqa: C901
     )
 
     with execution_context(end_user_id=cli_config.end_user_id):
-        plan = portia.plan_query(query)
+        plan = portia.plan(query)
 
         if cli_config.confirm:
             click.echo(plan.model_dump_json(indent=4))
             if not click.confirm("Do you want to execute the plan?"):
                 return
 
-        plan_run = portia.create_plan_run(plan)
-        plan_run = portia.execute_plan_run(plan_run)
+        plan_run = portia.run(query)
 
         final_states = [PlanRunState.COMPLETE, PlanRunState.FAILED]
         while plan_run.state not in final_states:
@@ -230,7 +229,7 @@ def run(  # noqa: C901
                     user_input = click.prompt("\nPlease enter a value:\n")
                     plan_run = portia.resolve_clarification(clarification, user_input, plan_run)
 
-            portia.execute_plan_run(plan_run)
+            portia.resume(plan_run)
 
         click.echo(plan_run.model_dump_json(indent=4))
 
@@ -247,7 +246,7 @@ def plan(
     portia = Portia(config=config)
 
     with execution_context(end_user_id=cli_config.end_user_id):
-        output = portia.plan_query(query)
+        output = portia.plan(query)
 
     click.echo(output.model_dump_json(indent=4))
 

@@ -62,7 +62,7 @@ def test_portia_run_query(
     portia = Portia(config=config, tools=tool_registry)
     query = "Add 1 + 2 together"
 
-    plan_run = portia.run_query(query)
+    plan_run = portia.run(query)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert plan_run.outputs.final_output
@@ -91,7 +91,7 @@ def test_portia_generate_plan(
     portia = Portia(config=config, tools=tool_registry)
     query = "Add 1 + 2 together"
 
-    plan = portia.plan_query(query)
+    plan = portia.plan(query)
 
     assert len(plan.steps) == 1
     assert plan.steps[0].tool_id == "add_tool"
@@ -99,7 +99,7 @@ def test_portia_generate_plan(
     assert len(plan.steps[0].inputs) == 2
     assert plan.steps[0].inputs[0].value + plan.steps[0].inputs[1].value == 3
 
-    plan_run = portia.run_query(query)
+    plan_run = portia.run(query)
 
     assert plan_run.state == PlanRunState.COMPLETE
     assert plan_run.outputs.final_output
@@ -146,8 +146,7 @@ def test_portia_run_query_with_clarifications(
     )
     portia.storage.save_plan(plan)
 
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run_plan(plan)
 
     assert plan_run.state == PlanRunState.NEED_CLARIFICATION
     assert plan_run.get_outstanding_clarifications()[0].user_guidance == "Return a clarification"
@@ -157,7 +156,7 @@ def test_portia_run_query_with_clarifications(
         "False",
     )
 
-    portia.execute_plan_run(plan_run)
+    portia.resume(plan_run)
     assert plan_run.state == PlanRunState.COMPLETE
 
 
@@ -207,8 +206,7 @@ def test_portia_run_query_with_hard_error(
         steps=[clarification_step],
     )
     portia.storage.save_plan(plan)
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run_plan(plan)
 
     assert plan_run.state == PlanRunState.FAILED
     assert plan_run.outputs.final_output
@@ -263,8 +261,7 @@ def test_portia_run_query_with_soft_error(
         steps=[clarification_step],
     )
     portia.storage.save_plan(plan)
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run_plan(plan)
 
     assert plan_run.state == PlanRunState.FAILED
     assert plan_run.outputs.final_output
@@ -345,8 +342,7 @@ def test_portia_run_query_with_multiple_clarifications(
     )
     portia.storage.save_plan(plan)
 
-    plan_run = portia.create_plan_run(plan)
-    plan_run = portia.execute_plan_run(plan_run)
+    plan_run = portia.run_plan(plan)
 
     assert plan_run.state == PlanRunState.NEED_CLARIFICATION
     assert plan_run.get_outstanding_clarifications()[0].user_guidance == "please try again"
@@ -357,7 +353,7 @@ def test_portia_run_query_with_multiple_clarifications(
         plan_run,
     )
 
-    portia.execute_plan_run(plan_run)
+    portia.resume(plan_run)
     assert plan_run.state == PlanRunState.COMPLETE
     # 498 = 456 (clarification - value a - step 1) + 2 (value b - step 1) + 40 (value b - step 2)
     assert plan_run.outputs.final_output is not None
@@ -372,5 +368,5 @@ def test_portia_run_query_with_example_registry() -> None:
     portia = Portia(config=config, tools=example_tool_registry)
     query = "Add 1 + 2 together and then write a haiku about the answer"
 
-    plan_run = portia.run_query(query)
+    plan_run = portia.run(query)
     assert plan_run.state == PlanRunState.COMPLETE
