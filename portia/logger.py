@@ -74,7 +74,7 @@ class Formatter:
         """
         self.max_lines = 30
 
-    def format(self, record: Any) -> str:
+    def format(self, record: Any) -> str:  # noqa: ANN401
         """Format a log record into a string with specific formatting.
 
         Args:
