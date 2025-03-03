@@ -8,6 +8,7 @@ from portia import (
     example_tool_registry,
     execution_context,
 )
+from portia.cli import CLIExecutionHooks
 
 portia = Portia(
     Config.from_default(default_log_level=LogLevel.DEBUG),
@@ -49,3 +50,13 @@ if plan_run.state == PlanRunState.NEED_CLARIFICATION:
 # Execute again with the same execution context
 with execution_context(context=plan_run.execution_context):
     portia.resume(plan_run)
+
+# You can also pass in a clarification handler to manage clarifications
+portia = Portia(
+    Config.from_default(default_log_level=LogLevel.DEBUG),
+    tools=example_tool_registry,
+    execution_hooks=CLIExecutionHooks(),
+)
+plan_run = portia.run(
+    "Get the temperature in London and Sydney and then add the two temperatures rounded to 2DP",
+)

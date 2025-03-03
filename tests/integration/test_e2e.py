@@ -12,9 +12,9 @@ from portia.errors import ToolSoftError
 from portia.open_source_tools.registry import example_tool_registry
 from portia.plan import Plan, PlanContext, Step, Variable
 from portia.plan_run import PlanRunState
-from portia.portia import Portia
+from portia.portia import ExecutionHooks, Portia
 from portia.tool_registry import InMemoryToolRegistry
-from tests.utils import AdditionTool, ClarificationTool, ErrorTool
+from tests.utils import AdditionTool, ClarificationTool, ErrorTool, TestClarificationHandler
 
 if TYPE_CHECKING:
     from portia.tool import ToolRunContext
@@ -120,6 +120,52 @@ def test_portia_run_query_with_clarifications(
         llm_provider=llm_provider,
         llm_model_name=llm_model_name,
         execution_agent_type=agent,
+        storage_class=StorageClass.MEMORY,
+    )
+
+    test_clarification_handler = TestClarificationHandler()
+    tool_registry = InMemoryToolRegistry.from_local_tools([ClarificationTool()])
+    portia = Portia(
+        config=config,
+        tools=tool_registry,
+        execution_hooks=ExecutionHooks(clarification_handler=test_clarification_handler),
+    )
+    clarification_step = Step(
+        tool_id="clarification_tool",
+        task="Use tool",
+        output="",
+        inputs=[
+            Variable(
+                name="user_guidance",
+                description="",
+                value="Return a clarification",
+            ),
+        ],
+    )
+    plan = Plan(
+        plan_context=PlanContext(
+            query="raise a clarification",
+            tool_ids=["clarification_tool"],
+        ),
+        steps=[clarification_step],
+    )
+    portia.storage.save_plan(plan)
+
+    plan_run = portia.run_plan(plan)
+    assert plan_run.state == PlanRunState.COMPLETE
+    assert test_clarification_handler.received_clarification is not None
+    assert (
+        test_clarification_handler.received_clarification.user_guidance == "Return a clarification"
+    )
+
+
+def test_portia_run_query_with_clarifications_no_handler() -> None:
+    """Test running a query with clarification using Portia."""
+    config = Config.from_default(
+        default_log_level=LogLevel.DEBUG,
+        llm_provider=LLMProvider.OPENAI,
+        llm_model_name=LLMModel.GPT_4_O_MINI,
+        execution_agent_type=ExecutionAgentType.DEFAULT,
         storage_class=StorageClass.MEMORY,
     )
 
@@ -296,8 +342,14 @@ def test_portia_run_query_with_multiple_clarifications(
                 )
             return a + b
 
+    test_clarification_handler = TestClarificationHandler()
+    test_clarification_handler.clarification_response = 456
     tool_registry = InMemoryToolRegistry.from_local_tools([MyAdditionTool()])
-    portia = Portia(config=config, tools=tool_registry)
+    portia = Portia(
+        config=config,
+        tools=tool_registry,
+        execution_hooks=ExecutionHooks(clarification_handler=test_clarification_handler),
+    )
 
     step_one = Step(
         tool_id="add_tool",
@@ -344,21 +396,15 @@ def test_portia_run_query_with_multiple_clarifications(
 
     plan_run = portia.run_plan(plan)
 
-    assert plan_run.state == PlanRunState.NEED_CLARIFICATION
-    assert plan_run.get_outstanding_clarifications()[0].user_guidance == "please try again"
-
-    plan_run = portia.resolve_clarification(
-        plan_run.get_outstanding_clarifications()[0],
-        456,
-        plan_run,
-    )
-
-    portia.resume(plan_run)
     assert plan_run.state == PlanRunState.COMPLETE
-    # 498 = 456 (clarification - value a - step 1) + 2 (value b - step 1) + 40 (value b - step 2)
+    # 498 = 456 (clarification for value a in step 1) + 2 (value b in step 1)
+    #  + 40 (value b in step 2)
     assert plan_run.outputs.final_output is not None
     assert plan_run.outputs.final_output.value == 498
     assert plan_run.outputs.final_output.summary is not None
+
+    assert test_clarification_handler.received_clarification is not None
+    assert test_clarification_handler.received_clarification.user_guidance == "please try again"
 
 
 def test_portia_run_query_with_example_registry() -> None:

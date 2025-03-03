@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, override
 
 from pydantic import BaseModel, Field, SecretStr
 
-from portia.clarification import Clarification, InputClarification
+from portia.clarification import (
+    Clarification,
+    InputClarification,
+)
+from portia.clarification_handler import ClarificationHandler
 from portia.config import Config, LogLevel, StorageClass
 from portia.errors import ToolHardError, ToolSoftError
 from portia.execution_context import ExecutionContext, empty_context
@@ -208,3 +212,22 @@ class NoneTool(Tool):
     def run(self, _: ToolRunContext) -> None:
         """Return."""
         return
+
+
+class TestClarificationHandler(ClarificationHandler):  # noqa: D101
+    received_clarification: Clarification | None = None
+    clarification_response: object = "Test"
+
+    @override
+    def handle_input_clarification(
+        self,
+        clarification: InputClarification,
+        on_resolution: Callable[[Clarification, object], None],
+        on_error: Callable[[Clarification, object], None],
+    ) -> None:
+        self.received_clarification = clarification
+        return on_resolution(clarification, self.clarification_response)
+
+    def reset(self) -> None:
+        """Reset the received clarification."""
+        self.received_clarification = None

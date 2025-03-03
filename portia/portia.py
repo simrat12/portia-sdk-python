@@ -57,9 +57,22 @@ from portia.tool_registry import DefaultToolRegistry, InMemoryToolRegistry, Tool
 from portia.tool_wrapper import ToolCallWrapper
 
 if TYPE_CHECKING:
+    from portia.clarification_handler import ClarificationHandler
     from portia.execution_agents.base_execution_agent import BaseExecutionAgent
     from portia.planning_agents.base_planning_agent import BasePlanningAgent
     from portia.tool import Tool
+
+
+class ExecutionHooks:
+    """Hooks that can be used to modify or add extra functionality to the run of a plan.
+
+    Currently, the only hook is a clarification handler which can be used to handle clarifications
+    that arise during the run of a plan.
+    """
+
+    def __init__(self, clarification_handler: ClarificationHandler | None = None) -> None:
+        """Initialize ExecutionHooks with default values."""
+        self.clarification_handler = clarification_handler
 
 
 class Portia:
@@ -73,6 +86,7 @@ class Portia:
         self,
         config: Config | None = None,
         tools: ToolRegistry | list[Tool] | None = None,
+        execution_hooks: ExecutionHooks | None = None,
     ) -> None:
         """Initialize storage and tools.
 
@@ -82,10 +96,13 @@ class Portia:
             tools (ToolRegistry | list[Tool]): The registry or list of tools to use. If not
                 provided, the open source tool registry will be used, alongside the default tools
                 from Portia cloud if a Portia API key is set.
+            execution_hooks (ExecutionHooks | None): Hooks that can be used to modify or add
+                extra functionality to the run of a plan.
 
         """
         self.config = config if config else Config.from_default()
         logger_manager.configure_from_config(self.config)
+        self.execution_hooks = execution_hooks if execution_hooks else ExecutionHooks()
 
         if isinstance(tools, ToolRegistry):
             self.tool_registry = tools
@@ -209,6 +226,12 @@ class Portia:
     ) -> PlanRun:
         """Resume a PlanRun.
 
+        If a clarification handler was provided as part of the execution hooks, it will be used
+        to handle any clarifications that are raised during the execution of the plan run.
+        If no clarification handler was provided and a clarification is raised, the run will be
+        returned in the `NEED_CLARIFICATION` state. The clarification will then need to be handled
+        by the caller before the plan run is resumed.
+
         Args:
             plan_run (PlanRun | None): The PlanRun to resume. Defaults to None.
             plan_run_id (RunUUID | str | None): The ID of the PlanRun to resume. Defaults to
@@ -246,11 +269,42 @@ class Portia:
         # if the run has execution context associated, but none is set then use it
         if not is_execution_context_set():
             with execution_context(plan_run.execution_context):
-                return self._execute_plan_run(plan, plan_run)
+                return self.execute_plan_run_and_handle_clarifications(plan, plan_run)
 
-        # if there is execution context set, make sure we update the run before running
-        plan_run.execution_context = get_execution_context()
-        return self._execute_plan_run(plan, plan_run)
+        return self.execute_plan_run_and_handle_clarifications(plan, plan_run)
+
+    def execute_plan_run_and_handle_clarifications(
+        self,
+        plan: Plan,
+        plan_run: PlanRun,
+    ) -> PlanRun:
+        """Execute a plan run and handle any clarifications that are raised."""
+        while plan_run.state not in [
+            PlanRunState.COMPLETE,
+            PlanRunState.FAILED,
+        ]:
+            plan_run.execution_context = get_execution_context()
+            plan_run = self._execute_plan_run(plan, plan_run)
+
+            # If we don't have a clarification handler, return the plan run even if a clarification
+            # has been raised
+            if not self.execution_hooks.clarification_handler:
+                return plan_run
+
+            clarifications = plan_run.get_outstanding_clarifications()
+            for clarification in clarifications:
+                self.execution_hooks.clarification_handler.handle(
+                    clarification=clarification,
+                    on_resolution=lambda c, r: self.resolve_clarification(c, r) and None,
+                    on_error=lambda c, r: self.error_clarification(c, r) and None,
+                )
+
+            if len(clarifications) > 0:
+                # If clarifications are handled synchronously, we'll go through this immediately.
+                # If they're handled asynchronously, we'll wait for the plan run to be ready.
+                self.wait_for_ready(plan_run)
+
+        return plan_run
 
     def resolve_clarification(
         self,
@@ -289,7 +343,23 @@ class Portia:
         self.storage.save_plan_run(plan_run)
         return plan_run
 
-    def wait_for_ready(
+    def error_clarification(
+        self,
+        clarification: Clarification,
+        error: object,
+        plan_run: PlanRun | None = None,
+    ) -> PlanRun:
+        """Mark that there was an error handling the clarification."""
+        logger().error(
+            f"Error handling clarification with guidance '{clarification.user_guidance}': {error}",
+        )
+        if plan_run is None:
+            plan_run = self.storage.get_plan_run(clarification.plan_run_id)
+        plan_run.state = PlanRunState.FAILED
+        self.storage.save_plan_run(plan_run)
+        return plan_run
+
+    def wait_for_ready(  # noqa: C901
         self,
         plan_run: PlanRun,
         max_retries: int = 6,
@@ -365,8 +435,9 @@ class Portia:
                         if clarification.category is ClarificationCategory.ACTION:
                             clarification.resolved = True
                             clarification.response = "complete"
-                    plan_run.state = PlanRunState.READY_TO_RESUME
-                    self.storage.save_plan_run(plan_run)
+                    if len(plan_run.get_outstanding_clarifications()) == 0:
+                        plan_run.state = PlanRunState.READY_TO_RESUME
+                        self.storage.save_plan_run(plan_run)
 
             logger().debug(f"New run state for {plan_run.id} is {plan_run.state}")
 
@@ -452,7 +523,7 @@ class Portia:
                     output=str(step_output.value),
                 )
 
-            if self._handle_clarifications(plan_run, step_output, plan):
+            if self._raise_clarifications(plan_run, step_output, plan):
                 return plan_run
 
             # set final output if is last step (accounting for zero index)
@@ -522,8 +593,8 @@ class Portia:
 
         return final_output
 
-    def _handle_clarifications(self, plan_run: PlanRun, step_output: Output, plan: Plan) -> bool:
-        """Handle any clarifications needed during run execution.
+    def _raise_clarifications(self, plan_run: PlanRun, step_output: Output, plan: Plan) -> bool:
+        """Update the plan run based on any clarifications raised.
 
         Args:
             plan_run (PlanRun): The PlanRun to execute.
@@ -599,4 +670,3 @@ class Portia:
             self.config,
             tool,
         )
-

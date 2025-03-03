@@ -13,7 +13,6 @@ import builtins
 import importlib.metadata
 import json
 import os
-import webbrowser
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -24,22 +23,24 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_core import PydanticUndefined
 
-from portia.clarification import (
-    ActionClarification,
-    CustomClarification,
-    InputClarification,
-    MultipleChoiceClarification,
-    ValueConfirmationClarification,
-)
+from portia.clarification_handler import ClarificationHandler
 from portia.config import Config
 from portia.execution_context import execution_context
 from portia.logger import logger
-from portia.plan_run import PlanRunState
-from portia.portia import Portia
+from portia.portia import ExecutionHooks, Portia
 from portia.tool_registry import DefaultToolRegistry
 
 if TYPE_CHECKING:
     from pydantic.fields import FieldInfo
+
+    from portia.clarification import (
+        ActionClarification,
+        Clarification,
+        CustomClarification,
+        InputClarification,
+        MultipleChoiceClarification,
+        ValueConfirmationClarification,
+    )
 
 DEFAULT_FILE_PATH = ".portia"
 PORTIA_API_KEY = "portia_api_key"
@@ -151,6 +152,87 @@ def common_options(f: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+class CLIExecutionHooks(ExecutionHooks):
+    """Execution hooks for the CLI."""
+
+    def __init__(self) -> None:
+        """Set up execution hooks for the CLI."""
+        super().__init__(clarification_handler=CLIClarificationHandler())
+
+
+class CLIClarificationHandler(ClarificationHandler):
+    """Handles clarifications by obtaining user input from the CLI."""
+
+    def handle_action_clarification(
+        self,
+        clarification: ActionClarification,
+        on_resolution: Callable[[Clarification, object], None],  # noqa: ARG002
+        on_error: Callable[[Clarification, object], None],  # noqa: ARG002
+    ) -> None:
+        """Handle an action clarification.
+
+        Does this by showing the user the URL on the CLI and instructing them to click on
+        it to proceed.
+        """
+        logger().info(
+            click.style(
+                f"{clarification.user_guidance} -- Please click on the link below to proceed."
+                f"{clarification.action_url}",
+                fg=87,
+            ),
+        )
+
+    def handle_input_clarification(
+        self,
+        clarification: InputClarification,
+        on_resolution: Callable[[Clarification, object], None],
+        on_error: Callable[[Clarification, object], None],  # noqa: ARG002
+    ) -> None:
+        """Handle a user input clarifications by asking the user for input from the CLI."""
+        user_input = click.prompt(
+            click.style(clarification.user_guidance + "\nPlease enter a value:\n", fg=87),
+        )
+        return on_resolution(clarification, user_input)
+
+    def handle_multiple_choice_clarification(
+        self,
+        clarification: MultipleChoiceClarification,
+        on_resolution: Callable[[Clarification, object], None],
+        on_error: Callable[[Clarification, object], None],  # noqa: ARG002
+    ) -> None:
+        """Handle a multi-choice clarification by asking the user for input from the CLI."""
+        choices = click.Choice(clarification.options)
+        user_input = click.prompt(
+            click.style(clarification.user_guidance + "\nPlease choose a value:\n", fg=87),
+            type=choices,
+        )
+        return on_resolution(clarification, user_input)
+
+    def handle_value_confirmation_clarification(
+        self,
+        clarification: ValueConfirmationClarification,
+        on_resolution: Callable[[Clarification, object], None],
+        on_error: Callable[[Clarification, object], None],
+    ) -> None:
+        """Handle a value confirmation clarification by asking the user to confirm from the CLI."""
+        if click.confirm(text=click.style(clarification.user_guidance, fg=87), default=False):
+            on_resolution(clarification, True)  # noqa: FBT003
+        else:
+            on_error(clarification, "Clarification was rejected by the user")
+
+    def handle_custom_clarification(
+        self,
+        clarification: CustomClarification,
+        on_resolution: Callable[[Clarification, object], None],
+        on_error: Callable[[Clarification, object], None],  # noqa: ARG002
+    ) -> None:
+        """Handle a custom clarification."""
+        click.echo(click.style(clarification.user_guidance, fg=87))
+        click.echo(click.style(f"Additional data: {json.dumps(clarification.data)}", fg=87))
+        user_input = click.prompt(click.style("\nPlease enter a value:\n", fg=87))
+        return on_resolution(clarification, user_input)
+
+
 @click.group(context_settings={"max_content_width": 240})
 def cli() -> None:
     """Portia CLI."""
@@ -165,7 +247,7 @@ def version() -> None:
 @click.command()
 @common_options
 @click.argument("query")
-def run(  # noqa: C901
+def run(
     query: str,
     **kwargs,  # noqa: ANN003
 ) -> None:
@@ -181,6 +263,7 @@ def run(  # noqa: C901
         tools=(
             registry.match_tools(tool_ids=[cli_config.tool_id]) if cli_config.tool_id else registry
         ),
+        execution_hooks=CLIExecutionHooks(),
     )
 
     with execution_context(end_user_id=cli_config.end_user_id):
@@ -192,45 +275,6 @@ def run(  # noqa: C901
                 return
 
         plan_run = portia.run(query)
-
-        final_states = [PlanRunState.COMPLETE, PlanRunState.FAILED]
-        while plan_run.state not in final_states:
-            for clarification in plan_run.get_outstanding_clarifications():
-                if isinstance(clarification, MultipleChoiceClarification):
-                    choices = click.Choice(clarification.options)
-                    user_input = click.prompt(
-                        clarification.user_guidance + "\nPlease choose a value:\n",
-                        type=choices,
-                    )
-                    plan_run = portia.resolve_clarification(clarification, user_input, plan_run)
-                if isinstance(clarification, ActionClarification):
-                    webbrowser.open(str(clarification.action_url))
-                    logger().info("Please complete authentication to continue")
-                    plan_run = portia.wait_for_ready(plan_run)
-                if isinstance(clarification, InputClarification):
-                    user_input = click.prompt(
-                        clarification.user_guidance + "\nPlease enter a value:\n",
-                    )
-                    plan_run = portia.resolve_clarification(clarification, user_input, plan_run)
-                if isinstance(clarification, ValueConfirmationClarification):
-                    if click.confirm(text=clarification.user_guidance, default=False):
-                        plan_run = portia.resolve_clarification(
-                            clarification,
-                            response=True,
-                            plan_run=plan_run,
-                        )
-                    else:
-                        plan_run.state = PlanRunState.FAILED
-                        portia.storage.save_plan_run(plan_run)
-
-                if isinstance(clarification, CustomClarification):
-                    click.echo(clarification.user_guidance)
-                    click.echo(f"Additional data: {json.dumps(clarification.data)}")
-                    user_input = click.prompt("\nPlease enter a value:\n")
-                    plan_run = portia.resolve_clarification(clarification, user_input, plan_run)
-
-            portia.resume(plan_run)
-
         click.echo(plan_run.model_dump_json(indent=4))
 
 

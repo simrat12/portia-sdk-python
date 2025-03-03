@@ -12,7 +12,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from portia.clarification import ArgumentClarification, ClarificationListType
+from portia.clarification import (
+    ClarificationListType,
+    InputClarification,
+    MultipleChoiceClarification,
+    ValueConfirmationClarification,
+)
 
 if TYPE_CHECKING:
     from portia.execution_agents.base_execution_agent import Output
@@ -135,7 +140,17 @@ def generate_clarification_context(clarifications: ClarificationListType, step: 
             ],
         )
         for clarification in current_step_clarifications:
-            if isinstance(clarification, (ArgumentClarification)) and clarification.step == step:
+            if (
+                isinstance(
+                    clarification,
+                    (
+                        InputClarification,
+                        MultipleChoiceClarification,
+                        ValueConfirmationClarification,
+                    ),
+                )
+                and clarification.step == step
+            ):
                 clarification_context.extend(
                     [
                         f"input_name: {clarification.argument_name}",
