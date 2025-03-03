@@ -27,7 +27,7 @@ from portia.clarification_handler import ClarificationHandler
 from portia.config import Config
 from portia.execution_context import execution_context
 from portia.logger import logger
-from portia.runner import ExecutionHooks, Runner
+from portia.portia import ExecutionHooks, Portia
 from portia.tool_registry import DefaultToolRegistry
 
 if TYPE_CHECKING:
@@ -166,8 +166,8 @@ class CLIClarificationHandler(ClarificationHandler):
     def handle_action_clarification(
         self,
         clarification: ActionClarification,
-        resolve: Callable[[Clarification, object], None],  # noqa: ARG002
-        error: Callable[[Clarification, object], None],  # noqa: ARG002
+        on_resolution: Callable[[Clarification, object], None],  # noqa: ARG002
+        on_error: Callable[[Clarification, object], None],  # noqa: ARG002
     ) -> None:
         """Handle an action clarification.
 
@@ -185,20 +185,20 @@ class CLIClarificationHandler(ClarificationHandler):
     def handle_input_clarification(
         self,
         clarification: InputClarification,
-        resolve: Callable[[Clarification, object], None],
-        error: Callable[[Clarification, object], None],  # noqa: ARG002
+        on_resolution: Callable[[Clarification, object], None],
+        on_error: Callable[[Clarification, object], None],  # noqa: ARG002
     ) -> None:
         """Handle a user input clarifications by asking the user for input from the CLI."""
         user_input = click.prompt(
             click.style(clarification.user_guidance + "\nPlease enter a value:\n", fg=87),
         )
-        return resolve(clarification, user_input)
+        return on_resolution(clarification, user_input)
 
     def handle_multiple_choice_clarification(
         self,
         clarification: MultipleChoiceClarification,
-        resolve: Callable[[Clarification, object], None],
-        error: Callable[[Clarification, object], None],  # noqa: ARG002
+        on_resolution: Callable[[Clarification, object], None],
+        on_error: Callable[[Clarification, object], None],  # noqa: ARG002
     ) -> None:
         """Handle a multi-choice clarification by asking the user for input from the CLI."""
         choices = click.Choice(clarification.options)
@@ -206,31 +206,31 @@ class CLIClarificationHandler(ClarificationHandler):
             click.style(clarification.user_guidance + "\nPlease choose a value:\n", fg=87),
             type=choices,
         )
-        return resolve(clarification, user_input)
+        return on_resolution(clarification, user_input)
 
     def handle_value_confirmation_clarification(
         self,
         clarification: ValueConfirmationClarification,
-        resolve: Callable[[Clarification, object], None],
-        error: Callable[[Clarification, object], None],
+        on_resolution: Callable[[Clarification, object], None],
+        on_error: Callable[[Clarification, object], None],
     ) -> None:
         """Handle a value confirmation clarification by asking the user to confirm from the CLI."""
         if click.confirm(text=click.style(clarification.user_guidance, fg=87), default=False):
-            resolve(clarification, True)  # noqa: FBT003
+            on_resolution(clarification, True)  # noqa: FBT003
         else:
-            error(clarification, "Clarification was rejected by the user")
+            on_error(clarification, "Clarification was rejected by the user")
 
     def handle_custom_clarification(
         self,
         clarification: CustomClarification,
-        resolve: Callable[[Clarification, object], None],
-        error: Callable[[Clarification, object], None],  # noqa: ARG002
+        on_resolution: Callable[[Clarification, object], None],
+        on_error: Callable[[Clarification, object], None],  # noqa: ARG002
     ) -> None:
         """Handle a custom clarification."""
         click.echo(click.style(clarification.user_guidance, fg=87))
         click.echo(click.style(f"Additional data: {json.dumps(clarification.data)}", fg=87))
         user_input = click.prompt(click.style("\nPlease enter a value:\n", fg=87))
-        return resolve(clarification, user_input)
+        return on_resolution(clarification, user_input)
 
 
 @click.group(context_settings={"max_content_width": 240})
@@ -258,7 +258,7 @@ def run(
     registry = DefaultToolRegistry(config)
 
     # Run the query
-    runner = Runner(
+    portia = Portia(
         config=config,
         tools=(
             registry.match_tools(tool_ids=[cli_config.tool_id]) if cli_config.tool_id else registry
@@ -267,16 +267,16 @@ def run(
     )
 
     with execution_context(end_user_id=cli_config.end_user_id):
-        plan = runner.generate_plan(query)
+        plan = portia.plan_query(query)
 
         if cli_config.confirm:
             click.echo(plan.model_dump_json(indent=4))
             if not click.confirm("Do you want to execute the plan?"):
                 return
 
-        workflow = runner.create_workflow(plan)
-        workflow = runner.execute_workflow(workflow)
-        click.echo(workflow.model_dump_json(indent=4))
+        plan_run = portia.create_plan_run(plan)
+        plan_run = portia.execute_plan_run(plan_run)
+        click.echo(plan_run.model_dump_json(indent=4))
 
 
 @click.command()
@@ -288,10 +288,10 @@ def plan(
 ) -> None:
     """Plan a query."""
     cli_config, config = _get_config(**kwargs)
-    runner = Runner(config=config)
+    portia = Portia(config=config)
 
     with execution_context(end_user_id=cli_config.end_user_id):
-        output = runner.generate_plan(query)
+        output = portia.plan_query(query)
 
     click.echo(output.model_dump_json(indent=4))
 

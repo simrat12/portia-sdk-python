@@ -1,7 +1,7 @@
 """Clarification Handler.
 
 This module defines the base ClarificationHandler interface that determines how to handle
-clarifications that arise during the execution of a workflow. It also provides a
+clarifications that arise during the run of a plan. It also provides a
 CLIClarificationHandler implementation that handles clarifications via the CLI.
 """
 
@@ -36,27 +36,46 @@ class ClarificationHandler(ABC):  # noqa: B024
             on_resolution: Callback function that should be invoked once the clarification has been
                 handled, prompting the plan run to resume. This can either be called synchronously
                 in this function or called async after returning from this function.
-            on_error: Callback function to mark that should be invokved if the clarification handling
-                has failed. This can either be called synchronously in this function or called async
+            on_error: Callback function that should be invoked if the clarification handling has
+                failed. This can either be called synchronously in this function or called async
                 after returning from this function.
 
         """
         match clarification:
             case ActionClarification():
-                f = self.handle_action_clarification
+                return self.handle_action_clarification(
+                    clarification,
+                    on_resolution,
+                    on_error,
+                )
             case InputClarification():
-                f = self.handle_input_clarification
+                return self.handle_input_clarification(
+                    clarification,
+                    on_resolution,
+                    on_error,
+                )
             case MultipleChoiceClarification():
-                f = self.handle_multiple_choice_clarification
+                return self.handle_multiple_choice_clarification(
+                    clarification,
+                    on_resolution,
+                    on_error,
+                )
             case ValueConfirmationClarification():
-                f = self.handle_value_confirmation_clarification
+                return self.handle_value_confirmation_clarification(
+                    clarification,
+                    on_resolution,
+                    on_error,
+                )
             case CustomClarification():
-                f = self.handle_custom_clarification
+                return self.handle_custom_clarification(
+                    clarification,
+                    on_resolution,
+                    on_error,
+                )
             case _:
                 raise ValueError(
                     f"Attempted to handle an unknown clarification type: {type(clarification)}",
                 )
-        f(clarification, on_resolution, on_error)
 
     def handle_action_clarification(
         self,
