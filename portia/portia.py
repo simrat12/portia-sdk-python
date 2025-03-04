@@ -338,8 +338,7 @@ class Portia:
             plan_run.state = PlanRunState.READY_TO_RESUME
 
         logger().info(
-            f"Clarification resolved with user guidance: {matched_clarification.user_guidance}, "
-            f"and response: {matched_clarification.response}",
+            f"Clarification resolved with response: {matched_clarification.response}",
         )
 
         logger().debug(
