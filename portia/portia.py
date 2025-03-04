@@ -444,6 +444,11 @@ class Portia:
                     if len(plan_run.get_outstanding_clarifications()) == 0:
                         plan_run.state = PlanRunState.READY_TO_RESUME
                         self.storage.save_plan_run(plan_run)
+                else:
+                    for clarification in current_step_clarifications:
+                        logger().info(
+                            f"Waiting for clarification {clarification.category} to be resolved",
+                        )
 
             logger().info(f"New run state for {plan_run.id!s} is {plan_run.state!s}")
 
