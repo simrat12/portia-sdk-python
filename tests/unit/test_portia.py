@@ -10,7 +10,11 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import HttpUrl, SecretStr
 
-from portia.clarification import ActionClarification, InputClarification
+from portia.clarification import (
+    ActionClarification,
+    InputClarification,
+    ValueConfirmationClarification,
+)
 from portia.config import Config, StorageClass
 from portia.errors import InvalidPlanRunStateError, PlanError, PlanRunNotFoundError
 from portia.execution_agents.base_execution_agent import Output
@@ -20,10 +24,16 @@ from portia.open_source_tools.registry import example_tool_registry, open_source
 from portia.plan import Plan, PlanContext, ReadOnlyPlan, Step
 from portia.plan_run import PlanRun, PlanRunOutputs, PlanRunState, PlanRunUUID, ReadOnlyPlanRun
 from portia.planning_agents.base_planning_agent import StepsOrError
-from portia.portia import Portia
+from portia.portia import ExecutionHooks, Portia
 from portia.tool import Tool, ToolRunContext
 from portia.tool_registry import InMemoryToolRegistry
-from tests.utils import AdditionTool, ClarificationTool, get_test_config, get_test_plan_run
+from tests.utils import (
+    AdditionTool,
+    ClarificationTool,
+    TestClarificationHandler,
+    get_test_config,
+    get_test_plan_run,
+)
 
 
 @pytest.fixture
@@ -634,9 +644,10 @@ def test_portia_run_plan(portia: Portia) -> None:
     plan = portia.plan(query)
 
     # Mock the _create_plan_run and resume methods
-    with mock.patch.object(portia, "_create_plan_run") as mock_create_plan_run, \
-         mock.patch.object(portia, "resume") as mock_resume:
-
+    with (
+        mock.patch.object(portia, "_create_plan_run") as mock_create_plan_run,
+        mock.patch.object(portia, "resume") as mock_resume,
+    ):
         mock_plan_run = MagicMock()
         mock_resumed_plan_run = MagicMock()
         mock_create_plan_run.return_value = mock_plan_run
@@ -649,3 +660,99 @@ def test_portia_run_plan(portia: Portia) -> None:
         mock_resume.assert_called_once_with(mock_plan_run)
 
         assert result == mock_resumed_plan_run
+
+
+def test_portia_handle_clarification() -> None:
+    """Test that portia can handle a clarification."""
+    clarification_handler = TestClarificationHandler()
+    portia = Portia(
+        config=get_test_config(),
+        tools=[ClarificationTool()],
+        execution_hooks=ExecutionHooks(clarification_handler=clarification_handler),
+    )
+    mock_plan = StepsOrError(
+        steps=[
+            Step(
+                task="Raise a clarification",
+                tool_id="clarification_tool",
+                output="$output",
+            ),
+        ],
+        error=None,
+    )
+    LLMWrapper.to_instructor = MagicMock(return_value=mock_plan)
+    mock_step_agent = mock.MagicMock()
+    mock_summarizer_agent = mock.MagicMock()
+    mock_summarizer_agent.create_summary.side_effect = "I caught the clarification"
+    with (
+        mock.patch(
+            "portia.portia.FinalOutputSummarizer",
+            return_value=mock_summarizer_agent,
+        ),
+        mock.patch.object(portia, "_get_agent_for_step", return_value=mock_step_agent),
+    ):
+        plan = portia.plan("Raise a clarification")
+        plan_run = portia._create_plan_run(plan)  # noqa: SLF001
+
+        mock_step_agent.execute_sync.side_effect = [
+            Output(
+                value=InputClarification(
+                    plan_run_id=plan_run.id,
+                    user_guidance="Handle this clarification",
+                    argument_name="raise_clarification",
+                ),
+            ),
+            Output(value="I caught the clarification"),
+        ]
+        portia.resume(plan_run)
+        assert plan_run.state == PlanRunState.COMPLETE
+
+        # Check that the clarifications were handled correctly
+        assert clarification_handler.received_clarification is not None
+        assert (
+            clarification_handler.received_clarification.user_guidance
+            == "Handle this clarification"
+        )
+
+
+def test_portia_error_clarification(portia: Portia) -> None:
+    """Test that portia can handle an error clarification."""
+    mock_response = StepsOrError(
+        steps=[],
+        error=None,
+    )
+    LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
+
+    plan_run = portia.run("test query")
+
+    portia.error_clarification(
+        ValueConfirmationClarification(
+            plan_run_id=plan_run.id,
+            user_guidance="Handle this clarification",
+            argument_name="raise_clarification",
+        ),
+        error=ValueError("test error"),
+    )
+    assert plan_run.state == PlanRunState.FAILED
+
+
+def test_portia_error_clarification_with_plan_run(portia: Portia) -> None:
+    """Test that portia can handle an error clarification."""
+    mock_response = StepsOrError(
+        steps=[],
+        error=None,
+    )
+    LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
+
+    plan_run = portia.run("test query")
+
+    portia.error_clarification(
+        ValueConfirmationClarification(
+            plan_run_id=plan_run.id,
+            user_guidance="Handle this clarification",
+            argument_name="raise_clarification",
+        ),
+        error=ValueError("test error"),
+        plan_run=plan_run,
+    )
+    assert plan_run.state == PlanRunState.FAILED

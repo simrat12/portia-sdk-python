@@ -64,7 +64,7 @@ class PlanRunOutputs(BaseModel):
 
     clarifications: ClarificationListType = Field(
         default=[],
-        description="Clarifications raise by this plan_run.",
+        description="Clarifications raised by this plan_run.",
     )
 
     step_outputs: dict[str, Output] = Field(
