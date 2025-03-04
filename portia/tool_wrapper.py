@@ -113,7 +113,7 @@ class ToolCallWrapper(Tool):
             status=ToolCallStatus.IN_PROGRESS,
         )
         logger().info(
-            f"Invoked {record.tool_name} with args: {record.input}",
+            f"Invoking {record.tool_name} with args: {record.input}",
         )
         start_time = datetime.now(tz=UTC)
         try:
