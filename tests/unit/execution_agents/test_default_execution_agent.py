@@ -1,4 +1,4 @@
-"""test verifier agent."""
+"""test default execution agent."""
 
 from __future__ import annotations
 
@@ -13,28 +13,28 @@ from langgraph.graph import END
 from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
-from portia.agents.base_agent import Output
-from portia.agents.verifier_agent import (
+from portia.clarification import InputClarification
+from portia.errors import InvalidAgentError, InvalidPlanRunStateError, InvalidWorkflowStateError
+from portia.execution_agents.base_execution_agent import Output
+from portia.execution_agents.default_execution_agent import (
     MAX_RETRIES,
+    DefaultExecutionAgent,
     ParserModel,
     ToolArgument,
     ToolCallingModel,
     ToolInputs,
     VerifiedToolArgument,
     VerifiedToolInputs,
-    VerifierAgent,
     VerifierModel,
 )
-from portia.clarification import InputClarification
-from portia.errors import InvalidAgentError, InvalidWorkflowStateError
 from portia.plan import Step
 from portia.tool import Tool
 from tests.utils import (
     AdditionTool,
     get_test_config,
     get_test_llm_wrapper,
+    get_test_plan_run,
     get_test_tool_context,
-    get_test_workflow,
 )
 
 if TYPE_CHECKING:
@@ -380,13 +380,13 @@ def test_tool_calling_model_no_hallucinations(monkeypatch: pytest.MonkeyPatch) -
         response=SimpleNamespace(tool_calls=[{"name": "add_tool", "args": "CALL_ARGS"}]),  # type: ignore  # noqa: PGH003
     )
     monkeypatch.setattr(ChatOpenAI, "invoke", mockinvoker.invoke)
-    (_, workflow) = get_test_workflow()
+    (_, plan_run) = get_test_plan_run()
     agent = SimpleNamespace(
         verified_args=verified_tool_inputs,
         clarifications=[],
     )
     agent.step = Step(task="DESCRIPTION_STRING", output="$out")
-    agent.workflow = workflow
+    agent.plan_run = plan_run
     agent.tool = SimpleNamespace(
         id="TOOL_ID",
         name="TOOL_NAME",
@@ -421,10 +421,10 @@ def test_tool_calling_model_with_hallucinations(monkeypatch: pytest.MonkeyPatch)
     )
     monkeypatch.setattr(ChatOpenAI, "invoke", mockinvoker.invoke)
 
-    (_, workflow) = get_test_workflow()
+    (_, plan_run) = get_test_plan_run()
 
     clarification = InputClarification(
-        workflow_id=workflow.id,
+        plan_run_id=plan_run.id,
         user_guidance="USER_GUIDANCE",
         response="CLARIFICATION_RESPONSE",
         argument_name="content",
@@ -432,14 +432,14 @@ def test_tool_calling_model_with_hallucinations(monkeypatch: pytest.MonkeyPatch)
     )
 
     failed_clarification = InputClarification(
-        workflow_id=workflow.id,
+        plan_run_id=plan_run.id,
         user_guidance="USER_GUIDANCE_FAILED",
         response="FAILED",
         argument_name="content",
         resolved=True,
     )
 
-    workflow.outputs.clarifications = [clarification]
+    plan_run.outputs.clarifications = [clarification]
     agent = SimpleNamespace(
         verified_args=verified_tool_inputs,
         clarifications=[failed_clarification, clarification],
@@ -449,7 +449,7 @@ def test_tool_calling_model_with_hallucinations(monkeypatch: pytest.MonkeyPatch)
         else None,
     )
     agent.step = Step(task="DESCRIPTION_STRING", output="$out")
-    agent.workflow = workflow
+    agent.plan_run = plan_run
     agent.tool = SimpleNamespace(
         id="TOOL_ID",
         name="TOOL_NAME",
@@ -539,10 +539,10 @@ def test_basic_agent_task(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(ToolNode, "invoke", tool_call)
 
-    (plan, workflow) = get_test_workflow()
-    agent = VerifierAgent(
+    (plan, plan_run) = get_test_plan_run()
+    agent = DefaultExecutionAgent(
         step=plan.steps[0],
-        workflow=workflow,
+        plan_run=plan_run,
         config=get_test_config(),
         tool=tool,
     )
@@ -595,10 +595,10 @@ def test_basic_agent_task_with_verified_args(monkeypatch: pytest.MonkeyPatch) ->
 
     monkeypatch.setattr(ToolNode, "invoke", tool_call)
 
-    (plan, workflow) = get_test_workflow()
-    agent = VerifierAgent(
+    (plan, plan_run) = get_test_plan_run()
+    agent = DefaultExecutionAgent(
         step=plan.steps[0],
-        workflow=workflow,
+        plan_run=plan_run,
         config=get_test_config(),
         tool=tool,
     )
@@ -609,7 +609,7 @@ def test_basic_agent_task_with_verified_args(monkeypatch: pytest.MonkeyPatch) ->
     assert output.value == "Sent email with id: 0"
 
 
-def test_verifier_agent_edge_cases() -> None:
+def test_default_execution_agent_edge_cases() -> None:
     """Tests edge cases are handled."""
     agent = SimpleNamespace()
     agent.step = Step(task="DESCRIPTION_STRING", output="$out")
@@ -619,7 +619,7 @@ def test_verifier_agent_edge_cases() -> None:
         context="CONTEXT_STRING",
         agent=agent,  # type: ignore  # noqa: PGH003
     )
-    with pytest.raises(InvalidWorkflowStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         parser_model.invoke({"messages": []})
 
     agent.verified_args = None
@@ -629,15 +629,15 @@ def test_verifier_agent_edge_cases() -> None:
         tools=[AdditionTool().to_langchain_with_artifact(ctx=get_test_tool_context())],
         agent=agent,  # type: ignore  # noqa: PGH003
     )
-    with pytest.raises(InvalidWorkflowStateError):
+    with pytest.raises(InvalidPlanRunStateError):
         tool_calling_model.invoke({"messages": []})
 
 
 def test_get_last_resolved_clarification() -> None:
     """Test get_last_resolved_clarification."""
-    (plan, workflow) = get_test_workflow()
+    (plan, plan_run) = get_test_plan_run()
     resolved_clarification1 = InputClarification(
-        workflow_id=workflow.id,
+        plan_run_id=plan_run.id,
         argument_name="arg",
         response="2",
         user_guidance="FAILED",
@@ -645,7 +645,7 @@ def test_get_last_resolved_clarification() -> None:
         step=0,
     )
     resolved_clarification2 = InputClarification(
-        workflow_id=workflow.id,
+        plan_run_id=plan_run.id,
         argument_name="arg",
         response="2",
         user_guidance="SUCCESS",
@@ -653,21 +653,21 @@ def test_get_last_resolved_clarification() -> None:
         step=0,
     )
     unresolved_clarification = InputClarification(
-        workflow_id=workflow.id,
+        plan_run_id=plan_run.id,
         argument_name="arg",
         response="2",
         user_guidance="",
         resolved=False,
         step=0,
     )
-    workflow.outputs.clarifications = [
+    plan_run.outputs.clarifications = [
         resolved_clarification1,
         resolved_clarification2,
         unresolved_clarification,
     ]
-    agent = VerifierAgent(
+    agent = DefaultExecutionAgent(
         step=plan.steps[0],
-        workflow=workflow,
+        plan_run=plan_run,
         config=get_test_config(),
         tool=None,
     )
@@ -676,18 +676,18 @@ def test_get_last_resolved_clarification() -> None:
 
 def test_clarifications_or_continue() -> None:
     """Test clarifications_or_continue."""
-    (plan, workflow) = get_test_workflow()
+    (plan, plan_run) = get_test_plan_run()
     clarification = InputClarification(
-        workflow_id=workflow.id,
+        plan_run_id=plan_run.id,
         argument_name="arg",
         response="2",
         user_guidance="",
         resolved=True,
     )
 
-    agent = VerifierAgent(
+    agent = DefaultExecutionAgent(
         step=plan.steps[0],
-        workflow=workflow,
+        plan_run=plan_run,
         config=get_test_config(),
         tool=None,
     )
@@ -713,7 +713,7 @@ def test_clarifications_or_continue() -> None:
 
     # when clarifications match expect to call tools
     clarification = InputClarification(
-        workflow_id=workflow.id,
+        plan_run_id=plan_run.id,
         argument_name="arg",
         response="1",
         user_guidance="",
@@ -721,11 +721,11 @@ def test_clarifications_or_continue() -> None:
         step=0,
     )
 
-    (plan, workflow) = get_test_workflow()
-    workflow.outputs.clarifications = [clarification]
-    agent = VerifierAgent(
+    (plan, plan_run) = get_test_plan_run()
+    plan_run.outputs.clarifications = [clarification]
+    agent = DefaultExecutionAgent(
         step=plan.steps[0],
-        workflow=workflow,
+        plan_run=plan_run,
         config=get_test_config(),
         tool=None,
     )
@@ -750,13 +750,13 @@ def test_clarifications_or_continue() -> None:
     assert len(agent.new_clarifications) == 0
 
 
-def test_verifier_agent_none_tool_execute_sync() -> None:
-    """Test that executing VerifierAgent with None tool raises an exception."""
-    (plan, workflow) = get_test_workflow()
+def test_default_execution_agent_none_tool_execute_sync() -> None:
+    """Test that executing DefaultExecutionAgent with None tool raises an exception."""
+    (plan, plan_run) = get_test_plan_run()
 
-    agent = VerifierAgent(
+    agent = DefaultExecutionAgent(
         step=plan.steps[0],
-        workflow=workflow,
+        plan_run=plan_run,
         config=get_test_config(),
         tool=None,
     )
@@ -764,7 +764,7 @@ def test_verifier_agent_none_tool_execute_sync() -> None:
     with pytest.raises(InvalidAgentError) as exc_info:
         agent.execute_sync()
 
-    assert "Tool is required for VerifierAgent" in str(exc_info.value)
+    assert "Tool is required for DefaultExecutionAgent" in str(exc_info.value)
 
 
 class MockToolSchema(BaseModel):
@@ -805,9 +805,9 @@ def test_optional_args_with_none_values() -> None:
     Required args with None values should always be marked made_up.
     Optional args with None values should be marked not made_up.
     """
-    agent = VerifierAgent(
+    agent = DefaultExecutionAgent(
         step=Step(task="TASK_STRING", output="$out"),
-        workflow=get_test_workflow()[1],
+        plan_run=get_test_plan_run()[1],
         config=get_test_config(),
         tool=MockTool(),
     )
@@ -832,6 +832,7 @@ def test_optional_args_with_none_values() -> None:
         ),
     )
     assert updated_tool_inputs.args[0].made_up is False
+
 
 def test_verifier_model_edge_cases() -> None:
     """Tests edge cases are handled."""

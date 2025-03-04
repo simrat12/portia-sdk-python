@@ -1,4 +1,4 @@
-"""Tests for runner classes."""
+"""Tests for portia classes."""
 
 import tempfile
 from pathlib import Path
@@ -7,18 +7,18 @@ import pytest
 from pydantic import SecretStr
 
 from portia.config import (
-    AgentType,
     Config,
+    ExecutionAgentType,
     LLMModel,
     LLMProvider,
     LogLevel,
-    PlannerType,
+    PlanningAgentType,
     StorageClass,
 )
 from portia.errors import ConfigNotFoundError, InvalidConfigError
 
 
-def test_runner_config_from_file() -> None:
+def test_portia_config_from_file() -> None:
     """Test loading configuration from a file."""
     config_data = """{
 "portia_api_key": "file-key",
@@ -28,8 +28,8 @@ def test_runner_config_from_file() -> None:
 "execution_llm_model_name": "GPT_4_O_MINI",
 "llm_tool_model_name": "GPT_4_O_MINI",
 "summariser_llm_model_name": "GPT_4_O_MINI",
-"default_agent_type": "VERIFIER",
-"default_planner": "ONE_SHOT"
+"execution_agent_type": "DEFAULT",
+"planning_agent_type": "DEFAULT"
 }"""
 
     with tempfile.NamedTemporaryFile("w", delete=True, suffix=".json") as temp_file:
@@ -42,7 +42,8 @@ def test_runner_config_from_file() -> None:
 
         assert config.must_get_raw_api_key("portia_api_key") == "file-key"
         assert config.must_get_raw_api_key("openai_api_key") == "file-openai-key"
-        assert config.default_agent_type == AgentType.VERIFIER
+        assert config.execution_agent_type == ExecutionAgentType.DEFAULT
+        assert config.planning_agent_type == PlanningAgentType.DEFAULT
         assert config.planning_llm_model_name == LLMModel.GPT_4_O_MINI
         assert config.execution_llm_model_name == LLMModel.GPT_4_O_MINI
         assert config.llm_tool_model_name == LLMModel.GPT_4_O_MINI
@@ -94,11 +95,11 @@ def test_set_with_strings(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # LLM provider + model
 
-    # default_agent_type
-    c = Config.from_default(default_agent_type="verifier")
-    assert c.default_agent_type == AgentType.VERIFIER
+    # execution_agent_type
+    c = Config.from_default(execution_agent_type="default")
+    assert c.execution_agent_type == ExecutionAgentType.DEFAULT
     with pytest.raises(InvalidConfigError):
-        c = Config.from_default(default_agent_type="my agent")
+        c = Config.from_default(execution_agent_type="my agent")
 
 
 def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -167,8 +168,8 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
             storage_class=StorageClass.MEMORY,
             llm_provider=LLMProvider.OPENAI,
             llm_model_name=LLMModel.CLAUDE_3_OPUS,
-            default_agent_type=AgentType.VERIFIER,
-            default_planner=PlannerType.ONE_SHOT,
+            execution_agent_type=ExecutionAgentType.DEFAULT,
+            planning_agent_type=PlanningAgentType.DEFAULT,
         )
 
     # No api key for provider model
@@ -180,8 +181,8 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
             Config.from_default(
                 storage_class=StorageClass.MEMORY,
                 llm_provider=provider,
-                default_agent_type=AgentType.VERIFIER,
-                default_planner=PlannerType.ONE_SHOT,
+                execution_agent_type=ExecutionAgentType.DEFAULT,
+                planning_agent_type=PlanningAgentType.DEFAULT,
             )
 
     # Unrecognised providers error
@@ -202,14 +203,15 @@ def test_getters() -> None:
 
     c = Config.from_default(
         openai_api_key=SecretStr("123"),
-        portia_api_key=SecretStr(""),
+        portia_api_key=SecretStr("123"),
+        anthropic_api_key=SecretStr(""),
         portia_api_endpoint="",
     )
     with pytest.raises(InvalidConfigError):
         c.must_get("portia_api_key", int)
 
     with pytest.raises(InvalidConfigError):
-        c.must_get_raw_api_key("portia_api_key")
+        c.must_get_raw_api_key("anthropic_api_key")
 
     with pytest.raises(InvalidConfigError):
         c.must_get("portia_api_endpoint", str)
@@ -219,8 +221,8 @@ def test_getters() -> None:
         Config.from_default(
             storage_class=StorageClass.CLOUD,
             portia_api_key=SecretStr(""),
-            default_agent_type=AgentType.VERIFIER,
-            default_planner=PlannerType.ONE_SHOT,
+            execution_agent_type=ExecutionAgentType.DEFAULT,
+            planning_agent_type=PlanningAgentType.DEFAULT,
         )
 
 

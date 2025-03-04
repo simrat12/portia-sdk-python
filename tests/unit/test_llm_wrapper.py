@@ -8,7 +8,7 @@ import pytest
 from pydantic import SecretStr
 
 from portia.llm_wrapper import BaseLLMWrapper, T
-from portia.planners.planner import StepsOrError
+from portia.planning_agents.base_planning_agent import StepsOrError
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel

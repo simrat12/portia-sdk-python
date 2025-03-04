@@ -28,7 +28,7 @@ T = TypeVar("T")
 
 
 class StorageClass(Enum):
-    """Enum representing locations plans and workflows are stored.
+    """Enum representing locations plans and runs are stored.
 
     Attributes:
         MEMORY: Stored in memory.
@@ -95,7 +95,7 @@ class LLMModel(Enum):
     GPT_4_O = "gpt-4o"
     GPT_4_O_MINI = "gpt-4o-mini"
     GPT_3_5_TURBO = "gpt-3.5-turbo"
-    O3_MINI = "o3-mini"
+    O_3_MINI = "o3-mini"
 
     # Anthropic
     CLAUDE_3_5_SONNET = "claude-3-5-sonnet-latest"
@@ -123,7 +123,7 @@ SUPPORTED_OPENAI_MODELS = [
     LLMModel.GPT_4_O,
     LLMModel.GPT_4_O_MINI,
     LLMModel.GPT_3_5_TURBO,
-    LLMModel.O3_MINI,
+    LLMModel.O_3_MINI,
 ]
 
 SUPPORTED_ANTHROPIC_MODELS = [
@@ -137,29 +137,28 @@ SUPPORTED_MISTRALAI_MODELS = [
 ]
 
 
-class AgentType(Enum):
+class ExecutionAgentType(Enum):
     """Enum for types of agents used for executing a step.
 
     Attributes:
-        TOOL_LESS: A tool-less agent.
-        ONE_SHOT: A one-shot agent.
-        VERIFIER: A verifier agent.
+        ONE_SHOT: The one-shot agent.
+        DEFAULT: The default agent.
 
     """
 
     ONE_SHOT = "ONE_SHOT"
-    VERIFIER = "VERIFIER"
+    DEFAULT = "DEFAULT"
 
 
-class PlannerType(Enum):
-    """Enum for planners used for planning queries.
+class PlanningAgentType(Enum):
+    """Enum for planning agents used for planning queries.
 
     Attributes:
-        ONE_SHOT: A one-shot planner.
+        DEFAULT: The default planning agent.
 
     """
 
-    ONE_SHOT = "ONE_SHOT"
+    DEFAULT = "DEFAULT"
 
 
 class LogLevel(Enum):
@@ -238,8 +237,8 @@ class Config(BaseModel):
         execution_llm_model_name: The specific LLM model used for the execution agent.
         llm_tool_model_name: The specific LLM model used for the LLM tool.
         summariser_llm_model_name: The specific LLM model used for summarization tasks.
-        default_agent_type: The default agent type.
-        default_planner: The default planner type.
+        planning_agent_type: The planning agent type.
+        execution_agent_type: The execution agent type.
 
     """
 
@@ -271,8 +270,11 @@ class Config(BaseModel):
 
     # Storage Options
     storage_class: StorageClass = Field(
-        default=StorageClass.MEMORY,
-        description="Where to store Plans and Workflows. By default these will be kept in memory.",
+        default_factory=lambda: StorageClass.CLOUD
+        if os.getenv("PORTIA_API_KEY")
+        else StorageClass.MEMORY,
+        description="Where to store Plans and PlanRuns. By default these will be kept in memory"
+        "if no API key is provided.",
     )
 
     @field_validator("storage_class", mode="before")
@@ -284,7 +286,7 @@ class Config(BaseModel):
     storage_dir: str | None = Field(
         default=None,
         description="If storage class is set to DISK this will be the location where plans "
-        "and workflows are written in a JSON format.",
+        "and runs are written in a JSON format.",
     )
 
     # Logging Options
@@ -340,28 +342,28 @@ class Config(BaseModel):
         return parse_str_to_enum(value, LLMModel)
 
     # Agent Options
-    default_agent_type: AgentType = Field(
-        default=AgentType.VERIFIER,
+    execution_agent_type: ExecutionAgentType = Field(
+        default=ExecutionAgentType.DEFAULT,
         description="The default agent type to use.",
     )
 
-    @field_validator("default_agent_type", mode="before")
+    @field_validator("execution_agent_type", mode="before")
     @classmethod
-    def parse_default_agent_type(cls, value: str | AgentType) -> AgentType:
-        """Parse default_agent_type to enum if string provided."""
-        return parse_str_to_enum(value, AgentType)
+    def parse_execution_agent_type(cls, value: str | ExecutionAgentType) -> ExecutionAgentType:
+        """Parse execution_agent_type to enum if string provided."""
+        return parse_str_to_enum(value, ExecutionAgentType)
 
-    # Planner Options
-    default_planner: PlannerType = Field(
-        default=PlannerType.ONE_SHOT,
-        description="The default planner to use.",
+    # PlanningAgent Options
+    planning_agent_type: PlanningAgentType = Field(
+        default=PlanningAgentType.DEFAULT,
+        description="The default planning_agent_type to use.",
     )
 
-    @field_validator("default_planner", mode="before")
+    @field_validator("planning_agent_type", mode="before")
     @classmethod
-    def parse_default_planner(cls, value: str | PlannerType) -> PlannerType:
-        """Parse default_planner to enum if string provided."""
-        return parse_str_to_enum(value, PlannerType)
+    def parse_planning_agent_type(cls, value: str | PlanningAgentType) -> PlanningAgentType:
+        """Parse planning_agent_type to enum if string provided."""
+        return parse_str_to_enum(value, PlanningAgentType)
 
     @model_validator(mode="after")
     def check_config(self) -> Self:
@@ -564,8 +566,11 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
         default_llm_tool_model_name = DEFAULT_MODELS[provider]
         default_summariser_llm_model_name = DEFAULT_MODELS[provider]
 
+    default_storage_class = (
+        StorageClass.CLOUD if os.getenv("PORTIA_API_KEY") else StorageClass.MEMORY
+    )
     return Config(
-        storage_class=kwargs.pop("storage_class", StorageClass.MEMORY),
+        storage_class=kwargs.pop("storage_class", default_storage_class),
         planning_llm_model_name=kwargs.pop(
             "planning_llm_model_name",
             default_planning_llm_model_name,
@@ -582,7 +587,6 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
             "summariser_llm_model_name",
             default_summariser_llm_model_name,
         ),
-        default_planner=kwargs.pop("default_planner", PlannerType.ONE_SHOT),
-        default_agent_type=kwargs.pop("default_agent_type", AgentType.VERIFIER),
-        **kwargs,
+        planning_agent_type=kwargs.pop("planning_agent_type", PlanningAgentType.DEFAULT),
+        execution_agent_type=kwargs.pop("execution_agent_type", ExecutionAgentType.DEFAULT),
     )
