@@ -338,9 +338,8 @@ class Portia:
         matched_clarification.response = response
 
         if len(plan_run.get_outstanding_clarifications()) == 0:
-            plan_run.state = PlanRunState.READY_TO_RESUME
+            self._set_plan_run_state(plan_run, PlanRunState.READY_TO_RESUME)
 
-        self.storage.save_plan_run(plan_run)
         return plan_run
 
     def error_clarification(
@@ -355,8 +354,7 @@ class Portia:
         )
         if plan_run is None:
             plan_run = self.storage.get_plan_run(clarification.plan_run_id)
-        plan_run.state = PlanRunState.FAILED
-        self.storage.save_plan_run(plan_run)
+        self._set_plan_run_state(plan_run, PlanRunState.FAILED)
         return plan_run
 
     def wait_for_ready(  # noqa: C901
@@ -436,14 +434,18 @@ class Portia:
                             clarification.resolved = True
                             clarification.response = "complete"
                     if len(plan_run.get_outstanding_clarifications()) == 0:
-                        plan_run.state = PlanRunState.READY_TO_RESUME
-                        self.storage.save_plan_run(plan_run)
+                        self._set_plan_run_state(plan_run, PlanRunState.READY_TO_RESUME)
 
             logger().debug(f"New run state for {plan_run.id} is {plan_run.state}")
 
         logger().info(f"Run {plan_run.id} is ready to resume")
 
         return plan_run
+
+    def _set_plan_run_state(self, plan_run: PlanRun, state: PlanRunState) -> None:
+        """Set the state of a plan run."""
+        plan_run.state = state
+        self.storage.save_plan_run(plan_run)
 
     def _create_plan_run(self, plan: Plan) -> PlanRun:
         """Create a PlanRun from a Plan.
@@ -474,8 +476,7 @@ class Portia:
             Run: The updated run after execution.
 
         """
-        plan_run.state = PlanRunState.IN_PROGRESS
-        self.storage.save_plan_run(plan_run)
+        self._set_plan_run_state(plan_run, PlanRunState.IN_PROGRESS)
         logger().debug(
             f"Executing run from step {plan_run.current_step_index}",
             extra={"plan": plan.id, "plan_run": plan_run.id},
@@ -502,9 +503,8 @@ class Portia:
             except Exception as e:  # noqa: BLE001 - We want to capture all failures here
                 error_output = Output(value=str(e))
                 plan_run.outputs.step_outputs[step.output] = error_output
-                plan_run.state = PlanRunState.FAILED
                 plan_run.outputs.final_output = error_output
-                self.storage.save_plan_run(plan_run)
+                self._set_plan_run_state(plan_run, PlanRunState.FAILED)
                 logger().error(
                     "error: {error}",
                     error=e,
@@ -538,8 +538,7 @@ class Portia:
                 plan_run=plan_run.model_dump_json(indent=4),
             )
 
-        plan_run.state = PlanRunState.COMPLETE
-        self.storage.save_plan_run(plan_run)
+        self._set_plan_run_state(plan_run, PlanRunState.COMPLETE)
         logger().debug(
             f"Final run status: {plan_run.state}",
             extra={"plan": plan.id, "plan_run": plan_run.id},
@@ -619,8 +618,7 @@ class Portia:
                 clarification.step = plan_run.current_step_index
 
             plan_run.outputs.clarifications = plan_run.outputs.clarifications + new_clarifications
-            plan_run.state = PlanRunState.NEED_CLARIFICATION
-            self.storage.save_plan_run(plan_run)
+            self._set_plan_run_state(plan_run, PlanRunState.NEED_CLARIFICATION)
             logger().info(
                 f"{len(new_clarifications)} Clarification(s) requested",
                 extra={"plan": plan.id, "plan_run": plan_run.id},
