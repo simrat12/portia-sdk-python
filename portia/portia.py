@@ -443,7 +443,7 @@ class Portia:
         return plan_run
 
     def _set_plan_run_state(self, plan_run: PlanRun, state: PlanRunState) -> None:
-        """Set the state of a plan run."""
+        """Set the state of a plan run and persist it to storage."""
         plan_run.state = state
         self.storage.save_plan_run(plan_run)
 

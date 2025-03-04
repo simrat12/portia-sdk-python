@@ -13,6 +13,7 @@ import builtins
 import importlib.metadata
 import json
 import os
+import sys
 from enum import Enum
 from functools import wraps
 from pathlib import Path
@@ -25,6 +26,7 @@ from pydantic_core import PydanticUndefined
 
 from portia.clarification_handler import ClarificationHandler
 from portia.config import Config
+from portia.errors import InvalidConfigError
 from portia.execution_context import execution_context
 from portia.logger import logger
 from portia.portia import ExecutionHooks, Portia
@@ -331,7 +333,11 @@ def _get_config(
     cli_config = CLIConfig(**kwargs)
     if cli_config.env_location == EnvLocation.ENV_FILE:
         load_dotenv(override=True)
-    config = Config.from_default(**kwargs)
+    try:
+        config = Config.from_default(**kwargs)
+    except InvalidConfigError as e:
+        logger().error(e.message)
+        sys.exit(1)
 
     keys = [
         os.getenv("OPENAI_API_KEY"),
