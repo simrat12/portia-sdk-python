@@ -190,7 +190,7 @@ class CLIClarificationHandler(ClarificationHandler):
     ) -> None:
         """Handle a user input clarifications by asking the user for input from the CLI."""
         user_input = click.prompt(
-            click.style(clarification.user_guidance + "\nPlease enter a value:\n", fg=87),
+            click.style(clarification.user_guidance + "\nPlease enter a value:", fg=87),
         )
         return on_resolution(clarification, user_input)
 
