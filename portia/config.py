@@ -312,7 +312,7 @@ class Config(BaseModel):
     def add_default_models(self) -> Self:
         """Add default models if not provided."""
         self.models = {
-            PLANNING_MODEL_KEY: PLANNER_DEFAULT_MODELS[self.llm_provider],
+            PLANNING_DEFAULT_MODEL_KEY: PLANNER_DEFAULT_MODELS[self.llm_provider],
             DEFAULT_MODEL_KEY: DEFAULT_MODELS[self.llm_provider],
             **self.models,
         }
@@ -320,11 +320,9 @@ class Config(BaseModel):
 
     def model(self, usage: str) -> LLMModel:
         """Get the LLM model for the given usage."""
-        default_model = self.models[DEFAULT_MODEL_KEY]
-        default_planning_model = self.models[PLANNING_DEFAULT_MODEL_KEY]
         if usage == PLANNING_MODEL_KEY:
-            return self.models.get(PLANNING_MODEL_KEY, default_planning_model)
-        return self.models.get(usage, default_model)
+            return self.models.get(PLANNING_MODEL_KEY, self.models[PLANNING_DEFAULT_MODEL_KEY])
+        return self.models.get(usage, self.models[DEFAULT_MODEL_KEY])
 
     # Storage Options
     storage_class: StorageClass = Field(

@@ -27,7 +27,7 @@ def test_portia_config_from_file() -> None:
 "anthropic_api_key": "file-anthropic-key",
 "llm_provider": "ANTHROPIC",
 "models": {
-    "PLANNING": "claude-3-5-haiku-latest"
+    "planning_model_name": "claude-3-5-haiku-latest"
 },
 "storage_class": "MEMORY",
 "execution_agent_type": "DEFAULT",
