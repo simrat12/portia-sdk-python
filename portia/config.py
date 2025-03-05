@@ -406,7 +406,17 @@ class Config(BaseModel):
         """Validate Config is consistent."""
         # Portia API Key must be provided if using cloud storage
         if self.storage_class == StorageClass.CLOUD and not self.has_api_key("portia_api_key"):
-            raise InvalidConfigError("portia_api_key", "Must be provided if using cloud storage")
+            raise InvalidConfigError(
+                "portia_api_key",
+                "A Portia API key must be provided if using cloud storage. Follow the steps at "
+                "https://docs.portialabs.ai/setup-account to obtain one if you don't already "
+                "have one",
+            )
+        if self.storage_class == StorageClass.DISK and not self.storage_dir:
+            raise InvalidConfigError(
+                "storage_dir",
+                "A storage directory must be provided if using disk storage",
+            )
 
         def validate_llm_api_key(provider: LLMProvider) -> None:
             """Validate LLM Config."""
@@ -528,7 +538,7 @@ def llm_provider_default_from_api_keys() -> LLMProvider:
         return LLMProvider.ANTHROPIC
     if os.getenv("MISTRAL_API_KEY"):
         return LLMProvider.MISTRALAI
-    raise InvalidConfigError(LLMProvider.OPENAI.to_api_key_name(), "No LLM API key found")
+    return LLMProvider.OPENAI
 
 
 def default_config(**kwargs) -> Config:  # noqa: ANN003
