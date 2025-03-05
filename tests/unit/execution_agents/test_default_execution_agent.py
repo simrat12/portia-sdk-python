@@ -14,7 +14,7 @@ from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
 from portia.clarification import InputClarification
-from portia.errors import InvalidAgentError, InvalidPlanRunStateError, InvalidWorkflowStateError
+from portia.errors import InvalidAgentError, InvalidPlanRunStateError
 from portia.execution_agents.base_execution_agent import Output
 from portia.execution_agents.default_execution_agent import (
     MAX_RETRIES,
@@ -838,11 +838,13 @@ def test_verifier_model_edge_cases() -> None:
     """Tests edge cases are handled."""
     agent = SimpleNamespace()
     agent.step = Step(task="DESCRIPTION_STRING", output="$out")
-    agent.tool = None
     verifier_model = VerifierModel(
         llm=get_test_llm_wrapper().to_langchain(),
         context="CONTEXT_STRING",
         agent=agent,  # type: ignore  # noqa: PGH003
     )
-    with pytest.raises(InvalidWorkflowStateError):
+
+    # Check error with no tool specified
+    agent.tool = None
+    with pytest.raises(InvalidPlanRunStateError):
         verifier_model.invoke({"messages": []})

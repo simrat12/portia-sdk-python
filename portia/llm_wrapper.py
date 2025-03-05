@@ -33,7 +33,7 @@ from mistralai import Mistral
 from openai import OpenAI
 from pydantic import BaseModel, SecretStr
 
-from portia.config import LLMModel, LLMProvider
+from portia.config import Config, LLMModel, LLMProvider, LLMUsage
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import (
@@ -143,6 +143,13 @@ class LLMWrapper(BaseLLMWrapper):
         self.model_name = model_name
         self.model_seed = model_seed
 
+    @classmethod
+    def for_usage(cls, usage: LLMUsage, config: Config) -> LLMWrapper:
+        """Create an LLMWrapper from a LLMModel."""
+        model = config.model(usage)
+        api_key = config.get_llm_api_key(model)
+        return cls(model, api_key)
+
     def to_langchain(self) -> BaseChatModel:
         """Return a LangChain chat model based on the LLM provider.
 
@@ -163,7 +170,7 @@ class LLMWrapper(BaseLLMWrapper):
                     max_retries=3,
                     # Unfortunately you get errors from o3 mini with Langchain unless you set
                     # temperature to 1. See https://github.com/ai-christianson/RA.Aid/issues/70
-                    temperature=1 if self.model_name == LLMModel.O3_MINI else 0,
+                    temperature=1 if self.model_name == LLMModel.O_3_MINI else 0,
                     # This is a workaround for o3 mini to avoid parallel tool calls.
                     # See https://github.com/langchain-ai/langchain/issues/25357
                     disabled_params={"parallel_tool_calls": None},

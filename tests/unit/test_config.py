@@ -11,6 +11,7 @@ from portia.config import (
     ExecutionAgentType,
     LLMModel,
     LLMProvider,
+    LLMUsage,
     LogLevel,
     PlanningAgentType,
     StorageClass,
@@ -23,11 +24,11 @@ def test_portia_config_from_file() -> None:
     config_data = """{
 "portia_api_key": "file-key",
 "openai_api_key": "file-openai-key",
+"llm_provider": "ANTHROPIC",
+"models": {
+    "PLANNING": "claude-3-5-haiku-latest"
+},
 "storage_class": "MEMORY",
-"planning_llm_model_name": "GPT_4_O_MINI",
-"execution_llm_model_name": "GPT_4_O_MINI",
-"llm_tool_model_name": "GPT_4_O_MINI",
-"summariser_llm_model_name": "GPT_4_O_MINI",
 "execution_agent_type": "DEFAULT",
 "planning_agent_type": "DEFAULT"
 }"""
@@ -42,12 +43,10 @@ def test_portia_config_from_file() -> None:
 
         assert config.must_get_raw_api_key("portia_api_key") == "file-key"
         assert config.must_get_raw_api_key("openai_api_key") == "file-openai-key"
+        assert config.llm_provider == LLMProvider.ANTHROPIC
+        assert config.model(LLMUsage.PLANNING) == LLMModel.CLAUDE_3_5_HAIKU
         assert config.execution_agent_type == ExecutionAgentType.DEFAULT
         assert config.planning_agent_type == PlanningAgentType.DEFAULT
-        assert config.planning_llm_model_name == LLMModel.GPT_4_O_MINI
-        assert config.execution_llm_model_name == LLMModel.GPT_4_O_MINI
-        assert config.llm_tool_model_name == LLMModel.GPT_4_O_MINI
-        assert config.summariser_llm_model_name == LLMModel.GPT_4_O_MINI
 
 
 def test_from_default() -> None:
@@ -93,8 +92,6 @@ def test_set_with_strings(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(InvalidConfigError):
         c = Config.from_default(default_log_level="some level")
 
-    # LLM provider + model
-
     # execution_agent_type
     c = Config.from_default(execution_agent_type="default")
     assert c.execution_agent_type == ExecutionAgentType.DEFAULT
@@ -110,67 +107,36 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Models can be set individually
     c = Config.from_default(
-        planning_llm_model_name=LLMModel.GPT_4_O,
-        execution_llm_model_name=LLMModel.GPT_4_O_MINI,
-        llm_tool_model_name=LLMModel.CLAUDE_3_OPUS,
-        summariser_llm_model_name=LLMModel.CLAUDE_3_5_HAIKU,
+        planning_model_name=LLMModel.GPT_4_O,
+        execution_model_name=LLMModel.GPT_4_O_MINI,
     )
-    assert c.planning_llm_model_name == LLMModel.GPT_4_O
-    assert c.execution_llm_model_name == LLMModel.GPT_4_O_MINI
-    assert c.llm_tool_model_name == LLMModel.CLAUDE_3_OPUS
-    assert c.summariser_llm_model_name == LLMModel.CLAUDE_3_5_HAIKU
+    assert c.model(LLMUsage.PLANNING) == LLMModel.GPT_4_O
+    assert c.model(LLMUsage.EXECUTION) == LLMModel.GPT_4_O_MINI
 
     # llm_model_name sets all models
     c = Config.from_default(llm_model_name="mistral_large_latest")
-    assert c.planning_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.execution_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.llm_tool_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.summariser_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(LLMUsage.PLANNING) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(LLMUsage.EXECUTION) == LLMModel.MISTRAL_LARGE_LATEST
 
     # llm_provider sets default model for all providers
     c = Config.from_default(llm_provider="mistralai")
-    assert c.planning_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.execution_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.llm_tool_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.summariser_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(LLMUsage.PLANNING) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(LLMUsage.EXECUTION) == LLMModel.MISTRAL_LARGE_LATEST
 
     # With nothing specified, it chooses a model we have API keys for
     monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
     c = Config.from_default()
-    assert c.planning_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.execution_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.llm_tool_model_name == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.summariser_llm_model_name == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(LLMUsage.PLANNING) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(LLMUsage.EXECUTION) == LLMModel.MISTRAL_LARGE_LATEST
 
     # With all API key set, correct default models are chosen
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
     c = Config.from_default()
-    assert c.planning_llm_model_name == LLMModel.O3_MINI
-    assert c.execution_llm_model_name == LLMModel.GPT_4_O
-    assert c.llm_tool_model_name == LLMModel.GPT_4_O
-    assert c.summariser_llm_model_name == LLMModel.GPT_4_O
-
-    # With all API key set, correct default models are chosen
-    monkeypatch.setenv("OPENAI_API_KEY", "")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
-    c = Config.from_default()
-    assert c.planning_llm_model_name == LLMModel.CLAUDE_3_5_SONNET
-    assert c.execution_llm_model_name == LLMModel.CLAUDE_3_5_SONNET
-    assert c.llm_tool_model_name == LLMModel.CLAUDE_3_5_SONNET
-    assert c.summariser_llm_model_name == LLMModel.CLAUDE_3_5_SONNET
-
-    # Mismatch between provider and model
-    with pytest.raises(InvalidConfigError):
-        Config.from_default(
-            storage_class=StorageClass.MEMORY,
-            llm_provider=LLMProvider.OPENAI,
-            llm_model_name=LLMModel.CLAUDE_3_OPUS,
-            execution_agent_type=ExecutionAgentType.DEFAULT,
-            planning_agent_type=PlanningAgentType.DEFAULT,
-        )
+    assert c.model(LLMUsage.PLANNING) == LLMModel.O_3_MINI
+    assert c.model(LLMUsage.EXECUTION) == LLMModel.GPT_4_O
 
     # No api key for provider model
     monkeypatch.setenv("OPENAI_API_KEY", "")

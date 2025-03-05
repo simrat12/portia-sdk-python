@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from portia.config import LLMUsage
 from portia.llm_wrapper import LLMWrapper
 
 if TYPE_CHECKING:
@@ -71,16 +72,8 @@ class FinalOutputSummarizer:
             str | None: The generated summary or None if generation fails.
 
         """
-<<<<<<< HEAD:portia/agents/utils/final_output_summarizer.py
-        llm = LLMWrapper(
-            self.config.summariser_llm_model_name,
-            self.config.get_llm_api_key(self.config.summariser_llm_model_name),
-        ).to_langchain()
-        context = self._build_tasks_and_outputs_context(plan, workflow)
-=======
-        llm = LLMWrapper(self.config).to_langchain()
+        llm = LLMWrapper.for_usage(LLMUsage.SUMMARISER, self.config).to_langchain()
         context = self._build_tasks_and_outputs_context(plan, plan_run)
->>>>>>> main:portia/execution_agents/utils/final_output_summarizer.py
         response = llm.invoke(
             self.SUMMARIZE_TASK + context,
         )

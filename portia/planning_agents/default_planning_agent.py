@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from portia.config import LLMUsage
 from portia.execution_context import ExecutionContext, get_execution_context
 from portia.llm_wrapper import LLMWrapper
 from portia.open_source_tools.llm_tool import LLMTool
@@ -24,10 +25,7 @@ class DefaultPlanningAgent(BasePlanningAgent):
 
     def __init__(self, config: Config) -> None:
         """Init with the config."""
-        self.llm_wrapper = LLMWrapper(
-            config.planning_llm_model_name,
-            config.get_llm_api_key(config.planning_llm_model_name),
-        )
+        self.llm_wrapper = LLMWrapper.for_usage(LLMUsage.PLANNING, config)
 
     def generate_steps_or_error(
         self,

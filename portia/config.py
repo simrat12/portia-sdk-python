@@ -71,6 +71,16 @@ class LLMProvider(Enum):
             case LLMProvider.MISTRALAI:
                 return SUPPORTED_MISTRALAI_MODELS
 
+    def to_api_key_name(self) -> str:
+        """Get the name of the API key for the provider."""
+        match self:
+            case LLMProvider.OPENAI:
+                return "openai_api_key"
+            case LLMProvider.ANTHROPIC:
+                return "anthropic_api_key"
+            case LLMProvider.MISTRALAI:
+                return "mistralai_api_key"
+
 
 class LLMModel(Enum):
     """Enum for supported LLM models.
@@ -180,6 +190,28 @@ class LogLevel(Enum):
     CRITICAL = "CRITICAL"
 
 
+class LLMUsage(Enum):
+    """Enum for types of LLM usage.
+
+    Attributes:
+        PLANNING: The LLM is used for planning.
+        EXECUTION: The LLM is used for execution.
+        TOOL: The LLM is used for a tool call.
+        SUMMARISER: The LLM is used for summarisation.
+
+    """
+
+    PLANNING = "PLANNING"
+    EXECUTION = "EXECUTION"
+    LLM_TOOL = "LLM_TOOL"
+    IMAGE_TOOL = "IMAGE_TOOL"
+    SUMMARISER = "SUMMARISER"
+
+    def to_keyword(self) -> str:
+        """Get the keyword for the LLM usage."""
+        return f"{self.value.lower()}_model_name"
+
+
 E = TypeVar("E", bound=Enum)
 
 
@@ -214,6 +246,19 @@ def parse_str_to_enum(value: str | E, enum_type: type[E]) -> E:
     )
 
 
+PLANNER_DEFAULT_MODELS = {
+    LLMProvider.OPENAI: LLMModel.O_3_MINI,
+    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
+    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
+}
+
+DEFAULT_MODELS = {
+    LLMProvider.OPENAI: LLMModel.GPT_4_O,
+    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
+    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
+}
+
+
 class Config(BaseModel):
     """General configuration for the SDK.
 
@@ -228,15 +273,13 @@ class Config(BaseModel):
         openai_api_key: The API key for OpenAI.
         anthropic_api_key: The API key for Anthropic.
         mistralai_api_key: The API key for MistralAI.
+        llm_provider: The LLM provider.
+        models: A dictionary of LLM models for each usage type.
         storage_class: The storage class used (e.g., MEMORY, DISK, CLOUD).
         storage_dir: The directory for storage, if applicable.
         default_log_level: The default log level (e.g., DEBUG, INFO).
         default_log_sink: The default destination for logs (e.g., sys.stdout).
         json_log_serialize: Whether to serialize logs in JSON format.
-        planning_llm_model_name: The specific LLM model used for the planning agent.
-        execution_llm_model_name: The specific LLM model used for the execution agent.
-        llm_tool_model_name: The specific LLM model used for the LLM tool.
-        summariser_llm_model_name: The specific LLM model used for summarization tasks.
         planning_agent_type: The planning agent type.
         execution_agent_type: The execution agent type.
 
@@ -267,6 +310,24 @@ class Config(BaseModel):
         default_factory=lambda: SecretStr(os.getenv("MISTRAL_API_KEY") or ""),
         description="The API Key for Mistral AI. Must be set if llm-provider is MISTRALAI",
     )
+
+    llm_provider: LLMProvider = Field(
+        default=LLMProvider.OPENAI,
+        description="Which LLM Provider to use.",
+    )
+
+    models: dict[LLMUsage, LLMModel] = Field(
+        default={},
+        description="A dictionary of configured LLM models for each usage.",
+    )
+
+    def model(self, usage: LLMUsage) -> LLMModel:
+        """Get the LLM model for the given usage."""
+        if usage in self.models:
+            return self.models[usage]
+        if usage == LLMUsage.PLANNING:
+            return PLANNER_DEFAULT_MODELS[self.llm_provider]
+        return DEFAULT_MODELS[self.llm_provider]
 
     # Storage Options
     storage_class: StorageClass = Field(
@@ -316,31 +377,6 @@ class Config(BaseModel):
         default=False,
         description="Whether to serialize logs to JSON",
     )
-    planning_llm_model_name: LLMModel = Field(
-        description="Which LLM Model to use for the planning agent.",
-    )
-    execution_llm_model_name: LLMModel = Field(
-        description="Which LLM Model to use for the execution agent.",
-    )
-    llm_tool_model_name: LLMModel = Field(
-        description="Which LLM Model to use for the LLM tool.",
-    )
-    summariser_llm_model_name: LLMModel = Field(
-        description="Which LLM Model to use for the summariser.",
-    )
-
-    @field_validator(
-        "planning_llm_model_name",
-        "execution_llm_model_name",
-        "llm_tool_model_name",
-        "summariser_llm_model_name",
-        mode="before",
-    )
-    @classmethod
-    def parse_llm_model_name(cls, value: str | LLMModel) -> LLMModel:
-        """Parse llm_model_name to enum if string provided."""
-        return parse_str_to_enum(value, LLMModel)
-
     # Agent Options
     execution_agent_type: ExecutionAgentType = Field(
         default=ExecutionAgentType.DEFAULT,
@@ -372,31 +408,17 @@ class Config(BaseModel):
         if self.storage_class == StorageClass.CLOUD and not self.has_api_key("portia_api_key"):
             raise InvalidConfigError("portia_api_key", "Must be provided if using cloud storage")
 
-        def validate_llm_api_key(expected_key: str, provider: LLMProvider) -> None:
+        def validate_llm_api_key(provider: LLMProvider) -> None:
             """Validate LLM Config."""
-            if not self.has_api_key(expected_key):
+            if not self.has_api_key(provider.to_api_key_name()):
                 raise InvalidConfigError(
-                    f"{expected_key}",
+                    f"{provider.to_api_key_name()}",
                     f"Must be provided if using {provider}",
                 )
 
-        providers = {
-            model.provider()
-            for model in [
-                self.planning_llm_model_name,
-                self.execution_llm_model_name,
-                self.llm_tool_model_name,
-                self.summariser_llm_model_name,
-            ]
-        }
-        for provider in providers:
-            match provider:
-                case LLMProvider.OPENAI:
-                    validate_llm_api_key("openai_api_key", LLMProvider.OPENAI)
-                case LLMProvider.ANTHROPIC:
-                    validate_llm_api_key("anthropic_api_key", LLMProvider.ANTHROPIC)
-                case LLMProvider.MISTRALAI:
-                    validate_llm_api_key("mistralai_api_key", LLMProvider.MISTRALAI)
+        for model in self.models.values():
+            validate_llm_api_key(model.provider())
+
         return self
 
     @classmethod
@@ -498,19 +520,6 @@ class Config(BaseModel):
                 return self.mistralai_api_key
 
 
-PLANNER_DEFAULT_MODELS = {
-    LLMProvider.OPENAI: LLMModel.O3_MINI,
-    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
-    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
-}
-
-DEFAULT_MODELS = {
-    LLMProvider.OPENAI: LLMModel.GPT_4_O,
-    LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
-    LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE_LATEST,
-}
-
-
 def llm_provider_default_from_api_keys() -> LLMProvider:
     """Get the default LLM provider from the API keys."""
     if os.getenv("OPENAI_API_KEY"):
@@ -519,7 +528,7 @@ def llm_provider_default_from_api_keys() -> LLMProvider:
         return LLMProvider.ANTHROPIC
     if os.getenv("MISTRAL_API_KEY"):
         return LLMProvider.MISTRALAI
-    return LLMProvider.OPENAI
+    raise InvalidConfigError(LLMProvider.OPENAI.to_api_key_name(), "No LLM API key found")
 
 
 def default_config(**kwargs) -> Config:  # noqa: ANN003
@@ -529,64 +538,25 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
         Config: The default config
 
     """
-    # Precedence for LLM config is:
-    # 1. Specific LLM model name - e.g. planning_llm_model_name="gpt-4o"
-    # 2. General LLM model name - e.g. llm_model_name="gpt-4o"
-    # 3. Default for specified provider - e.g. llm_provider="openai"
-    # 4. Default for a provider based on API keys available
-    # 5. Default for OpenAI
+    llm_model_name = kwargs.pop("llm_model_name", None)
+    models = {}
+    for usage in LLMUsage:
+        model_name = kwargs.pop(usage.to_keyword(), llm_model_name)
+        if model_name:
+            models[usage] = parse_str_to_enum(model_name, LLMModel)
 
-    if "llm_model_name" in kwargs and "llm_provider" in kwargs:
-        llm_model_name = parse_str_to_enum(kwargs.get("llm_model_name", LLMModel.O3_MINI), LLMModel)
-        llm_provider = parse_str_to_enum(
-            kwargs.get("llm_provider", LLMProvider.OPENAI),
-            LLMProvider,
-        )
-        if llm_model_name.provider() != llm_provider:
-            raise InvalidConfigError(
-                "llm_provider",
-                "The provider does not match the specified LLM model",
-            )
-
-    if "llm_model_name" in kwargs:
-        llm_model_name = kwargs.pop("llm_model_name")
-        default_planning_llm_model_name = llm_model_name
-        default_execution_llm_model_name = llm_model_name
-        default_llm_tool_model_name = llm_model_name
-        default_summariser_llm_model_name = llm_model_name
-    else:
-        # If the user specifies a provider, use that when determining defaults - otherwise,
-        # work out their chosen provider based on what API keys they have set.
-        provider = parse_str_to_enum(
-            kwargs.pop("llm_provider", llm_provider_default_from_api_keys()),
-            LLMProvider,
-        )
-        default_planning_llm_model_name = PLANNER_DEFAULT_MODELS[provider]
-        default_execution_llm_model_name = DEFAULT_MODELS[provider]
-        default_llm_tool_model_name = DEFAULT_MODELS[provider]
-        default_summariser_llm_model_name = DEFAULT_MODELS[provider]
-
+    llm_provider = parse_str_to_enum(
+        kwargs.pop("llm_provider", llm_provider_default_from_api_keys()),
+        LLMProvider,
+    )
     default_storage_class = (
         StorageClass.CLOUD if os.getenv("PORTIA_API_KEY") else StorageClass.MEMORY
     )
     return Config(
+        llm_provider=llm_provider,
+        models=models,
         storage_class=kwargs.pop("storage_class", default_storage_class),
-        planning_llm_model_name=kwargs.pop(
-            "planning_llm_model_name",
-            default_planning_llm_model_name,
-        ),
-        execution_llm_model_name=kwargs.pop(
-            "execution_llm_model_name",
-            default_execution_llm_model_name,
-        ),
-        llm_tool_model_name=kwargs.pop(
-            "llm_tool_model_name",
-            default_llm_tool_model_name,
-        ),
-        summariser_llm_model_name=kwargs.pop(
-            "summariser_llm_model_name",
-            default_summariser_llm_model_name,
-        ),
         planning_agent_type=kwargs.pop("planning_agent_type", PlanningAgentType.DEFAULT),
         execution_agent_type=kwargs.pop("execution_agent_type", ExecutionAgentType.DEFAULT),
+        **kwargs,
     )

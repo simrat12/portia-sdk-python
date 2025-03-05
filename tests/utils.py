@@ -6,17 +6,9 @@ from typing import TYPE_CHECKING, Callable, override
 
 from pydantic import BaseModel, Field, SecretStr
 
-<<<<<<< HEAD
 from portia.clarification import Clarification, InputClarification
-from portia.config import Config, LLMModel, LogLevel
-=======
-from portia.clarification import (
-    Clarification,
-    InputClarification,
-)
 from portia.clarification_handler import ClarificationHandler
-from portia.config import Config, LogLevel, StorageClass
->>>>>>> main
+from portia.config import Config, LLMModel, LogLevel, StorageClass
 from portia.errors import ToolHardError, ToolSoftError
 from portia.execution_context import ExecutionContext, empty_context
 from portia.llm_wrapper import LLMWrapper
