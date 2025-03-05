@@ -12,7 +12,6 @@ from __future__ import annotations
 import builtins
 import importlib.metadata
 import json
-import os
 import sys
 from enum import Enum
 from functools import wraps
@@ -338,28 +337,6 @@ def _get_config(
     except InvalidConfigError as e:
         logger().error(e.message)
         sys.exit(1)
-
-    keys = [
-        os.getenv("OPENAI_API_KEY"),
-        os.getenv("ANTHROPIC_API_KEY"),
-        os.getenv("MISTRAL_API_KEY"),
-    ]
-
-    llm_provider = config.llm_provider
-    llm_model = config.llm_model_name
-
-    keys = [k for k in keys if k is not None]
-    if len(keys) > 1 and llm_provider is None and llm_model is None:
-        message = "Multiple LLM keys found, but no default provided: Select a provider or model"
-        raise click.UsageError(message)
-
-    if llm_provider or llm_model:
-        config.llm_provider = llm_provider if llm_provider else llm_model.provider()
-        config.llm_model_name = (
-            llm_model
-            if llm_model in llm_provider.associated_models()
-            else config.llm_provider.default_model()
-        )
 
     return (cli_config, config)
 
