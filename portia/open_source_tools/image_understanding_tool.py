@@ -7,6 +7,7 @@ from typing import Any
 from langchain.schema import HumanMessage
 from pydantic import BaseModel, Field
 
+from portia.config import IMAGE_TOOL_MODEL_KEY
 from portia.llm_wrapper import LLMWrapper
 from portia.tool import Tool, ToolRunContext
 
@@ -48,8 +49,7 @@ class ImageUnderstandingTool(Tool[str]):
 
     def run(self, ctx: ToolRunContext, **kwargs: Any) -> str:  # noqa: ANN401
         """Run the ImageTool."""
-        image_wrapper = LLMWrapper(ctx.config)
-        image_processor = image_wrapper.to_langchain()
+        image_processor = LLMWrapper.for_usage(IMAGE_TOOL_MODEL_KEY, ctx.config).to_langchain()
 
         tool_schema = ImageUnderstandingToolSchema(**kwargs)
 

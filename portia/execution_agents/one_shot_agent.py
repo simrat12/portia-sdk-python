@@ -15,6 +15,7 @@ from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplat
 from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.prebuilt import ToolNode
 
+from portia.config import EXECUTION_MODEL_KEY
 from portia.errors import InvalidAgentError
 from portia.execution_agents.base_execution_agent import BaseExecutionAgent, Output
 from portia.execution_agents.execution_utils import (
@@ -177,7 +178,7 @@ class OneShotAgent(BaseExecutionAgent):
 
         context = self.get_system_context()
 
-        llm = LLMWrapper(self.config).to_langchain()
+        llm = LLMWrapper.for_usage(EXECUTION_MODEL_KEY, self.config).to_langchain()
         tools = [
             self.tool.to_langchain_with_artifact(
                 ctx=ToolRunContext(
