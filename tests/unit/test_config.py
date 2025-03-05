@@ -7,11 +7,12 @@ import pytest
 from pydantic import SecretStr
 
 from portia.config import (
+    EXECUTION_MODEL_KEY,
+    PLANNING_MODEL_KEY,
     Config,
     ExecutionAgentType,
     LLMModel,
     LLMProvider,
-    LLMUsage,
     LogLevel,
     PlanningAgentType,
     StorageClass,
@@ -44,7 +45,7 @@ def test_portia_config_from_file() -> None:
         assert config.must_get_raw_api_key("portia_api_key") == "file-key"
         assert config.must_get_raw_api_key("anthropic_api_key") == "file-anthropic-key"
         assert config.llm_provider == LLMProvider.ANTHROPIC
-        assert config.model(LLMUsage.PLANNING) == LLMModel.CLAUDE_3_5_HAIKU
+        assert config.model(PLANNING_MODEL_KEY) == LLMModel.CLAUDE_3_5_HAIKU
         assert config.execution_agent_type == ExecutionAgentType.DEFAULT
         assert config.planning_agent_type == PlanningAgentType.DEFAULT
 
@@ -119,33 +120,33 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
         planning_model_name=LLMModel.GPT_4_O,
         execution_model_name=LLMModel.GPT_4_O_MINI,
     )
-    assert c.model(LLMUsage.PLANNING) == LLMModel.GPT_4_O
-    assert c.model(LLMUsage.EXECUTION) == LLMModel.GPT_4_O_MINI
+    assert c.model(PLANNING_MODEL_KEY) == LLMModel.GPT_4_O
+    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.GPT_4_O_MINI
 
     # llm_model_name sets all models
     c = Config.from_default(llm_model_name="mistral_large_latest")
-    assert c.model(LLMUsage.PLANNING) == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.model(LLMUsage.EXECUTION) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
 
     # llm_provider sets default model for all providers
     c = Config.from_default(llm_provider="mistralai")
-    assert c.model(LLMUsage.PLANNING) == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.model(LLMUsage.EXECUTION) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
 
     # With nothing specified, it chooses a model we have API keys for
     monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
     c = Config.from_default()
-    assert c.model(LLMUsage.PLANNING) == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.model(LLMUsage.EXECUTION) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
 
     # With all API key set, correct default models are chosen
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
     c = Config.from_default()
-    assert c.model(LLMUsage.PLANNING) == LLMModel.O_3_MINI
-    assert c.model(LLMUsage.EXECUTION) == LLMModel.GPT_4_O
+    assert c.model(PLANNING_MODEL_KEY) == LLMModel.O_3_MINI
+    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.GPT_4_O
 
     # No api key for provider model
     monkeypatch.setenv("OPENAI_API_KEY", "")

@@ -33,7 +33,7 @@ from mistralai import Mistral
 from openai import OpenAI
 from pydantic import BaseModel, SecretStr
 
-from portia.config import Config, LLMModel, LLMProvider, LLMUsage
+from portia.config import Config, LLMModel, LLMProvider
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import (
@@ -144,7 +144,7 @@ class LLMWrapper(BaseLLMWrapper):
         self.model_seed = model_seed
 
     @classmethod
-    def for_usage(cls, usage: LLMUsage, config: Config) -> LLMWrapper:
+    def for_usage(cls, usage: str, config: Config) -> LLMWrapper:
         """Create an LLMWrapper from a LLMModel."""
         model = config.model(usage)
         api_key = config.get_llm_api_key(model)

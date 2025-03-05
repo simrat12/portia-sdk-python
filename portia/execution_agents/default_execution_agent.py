@@ -15,7 +15,7 @@ from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from portia.clarification import Clarification, InputClarification
-from portia.config import LLMUsage
+from portia.config import EXECUTION_MODEL_KEY
 from portia.errors import InvalidAgentError, InvalidPlanRunStateError
 from portia.execution_agents.base_execution_agent import BaseExecutionAgent, Output
 from portia.execution_agents.execution_utils import (
@@ -578,7 +578,7 @@ class DefaultExecutionAgent(BaseExecutionAgent):
         context = self.get_system_context()
         execution_context = get_execution_context()
         execution_context.plan_run_context = context
-        llm = LLMWrapper.for_usage(LLMUsage.EXECUTION, self.config).to_langchain()
+        llm = LLMWrapper.for_usage(EXECUTION_MODEL_KEY, self.config).to_langchain()
 
         tools = [
             self.tool.to_langchain_with_artifact(

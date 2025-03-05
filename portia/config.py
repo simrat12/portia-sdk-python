@@ -190,26 +190,13 @@ class LogLevel(Enum):
     CRITICAL = "CRITICAL"
 
 
-class LLMUsage(Enum):
-    """Enum for types of LLM usage.
-
-    Attributes:
-        PLANNING: The LLM is used for planning.
-        EXECUTION: The LLM is used for execution.
-        TOOL: The LLM is used for a tool call.
-        SUMMARISER: The LLM is used for summarisation.
-
-    """
-
-    PLANNING = "PLANNING"
-    EXECUTION = "EXECUTION"
-    LLM_TOOL = "LLM_TOOL"
-    IMAGE_TOOL = "IMAGE_TOOL"
-    SUMMARISER = "SUMMARISER"
-
-    def to_keyword(self) -> str:
-        """Get the keyword for the LLM usage."""
-        return f"{self.value.lower()}_model_name"
+PLANNING_MODEL_KEY = "planning_model_name"
+EXECUTION_MODEL_KEY = "execution_model_name"
+LLM_TOOL_MODEL_KEY = "llm_tool_model_name"
+IMAGE_TOOL_MODEL_KEY = "image_tool_model_name"
+SUMMARISER_MODEL_KEY = "summariser_model_name"
+DEFAULT_MODEL_KEY = "default_model_name"
+PLANNING_DEFAULT_MODEL_KEY = "planning_default_model_name"
 
 
 E = TypeVar("E", bound=Enum)
@@ -316,18 +303,28 @@ class Config(BaseModel):
         description="Which LLM Provider to use.",
     )
 
-    models: dict[LLMUsage, LLMModel] = Field(
+    models: dict[str, LLMModel] = Field(
         default={},
         description="A dictionary of configured LLM models for each usage.",
     )
 
-    def model(self, usage: LLMUsage) -> LLMModel:
+    @model_validator(mode="after")
+    def add_default_models(self) -> Self:
+        """Add default models if not provided."""
+        self.models = {
+            PLANNING_MODEL_KEY: PLANNER_DEFAULT_MODELS[self.llm_provider],
+            DEFAULT_MODEL_KEY: DEFAULT_MODELS[self.llm_provider],
+            **self.models,
+        }
+        return self
+
+    def model(self, usage: str) -> LLMModel:
         """Get the LLM model for the given usage."""
-        if usage in self.models:
-            return self.models[usage]
-        if usage == LLMUsage.PLANNING:
-            return PLANNER_DEFAULT_MODELS[self.llm_provider]
-        return DEFAULT_MODELS[self.llm_provider]
+        default_model = self.models[DEFAULT_MODEL_KEY]
+        default_planning_model = self.models[PLANNING_DEFAULT_MODEL_KEY]
+        if usage == PLANNING_MODEL_KEY:
+            return self.models.get(PLANNING_MODEL_KEY, default_planning_model)
+        return self.models.get(usage, default_model)
 
     # Storage Options
     storage_class: StorageClass = Field(
@@ -551,10 +548,16 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
     """
     llm_model_name = kwargs.pop("llm_model_name", None)
     models = {}
-    for usage in LLMUsage:
-        model_name = kwargs.pop(usage.to_keyword(), llm_model_name)
+    for model_usage in [
+        PLANNING_MODEL_KEY,
+        EXECUTION_MODEL_KEY,
+        LLM_TOOL_MODEL_KEY,
+        IMAGE_TOOL_MODEL_KEY,
+        SUMMARISER_MODEL_KEY,
+    ]:
+        model_name = kwargs.pop(model_usage, llm_model_name)
         if model_name:
-            models[usage] = parse_str_to_enum(model_name, LLMModel)
+            models[model_usage] = parse_str_to_enum(model_name, LLMModel)
 
     llm_provider = parse_str_to_enum(
         kwargs.pop("llm_provider", llm_provider_default_from_api_keys(**kwargs)),
