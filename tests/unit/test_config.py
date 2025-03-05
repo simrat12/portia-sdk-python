@@ -23,7 +23,7 @@ def test_portia_config_from_file() -> None:
     """Test loading configuration from a file."""
     config_data = """{
 "portia_api_key": "file-key",
-"openai_api_key": "file-openai-key",
+"anthropic_api_key": "file-anthropic-key",
 "llm_provider": "ANTHROPIC",
 "models": {
     "PLANNING": "claude-3-5-haiku-latest"
@@ -42,7 +42,7 @@ def test_portia_config_from_file() -> None:
         config = Config.from_file(config_file)
 
         assert config.must_get_raw_api_key("portia_api_key") == "file-key"
-        assert config.must_get_raw_api_key("openai_api_key") == "file-openai-key"
+        assert config.must_get_raw_api_key("anthropic_api_key") == "file-anthropic-key"
         assert config.llm_provider == LLMProvider.ANTHROPIC
         assert config.model(LLMUsage.PLANNING) == LLMModel.CLAUDE_3_5_HAIKU
         assert config.execution_agent_type == ExecutionAgentType.DEFAULT
@@ -159,6 +159,18 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
                 execution_agent_type=ExecutionAgentType.DEFAULT,
                 planning_agent_type=PlanningAgentType.DEFAULT,
             )
+
+    # Wrong api key for provider model
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-anthropic-key")
+    monkeypatch.setenv("MISTRAL_API_KEY", "")
+    with pytest.raises(InvalidConfigError):
+        Config.from_default(
+            storage_class=StorageClass.MEMORY,
+            llm_model_name=LLMModel.MISTRAL_LARGE_LATEST,
+            execution_agent_type=ExecutionAgentType.DEFAULT,
+            planning_agent_type=PlanningAgentType.DEFAULT,
+        )
 
     # Unrecognised providers error
     with pytest.raises(InvalidConfigError):

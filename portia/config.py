@@ -426,6 +426,7 @@ class Config(BaseModel):
                     f"Must be provided if using {provider}",
                 )
 
+        validate_llm_api_key(self.llm_provider)
         for model in self.models.values():
             validate_llm_api_key(model.provider())
 
@@ -530,15 +531,15 @@ class Config(BaseModel):
                 return self.mistralai_api_key
 
 
-def llm_provider_default_from_api_keys() -> LLMProvider:
+def llm_provider_default_from_api_keys(**kwargs) -> LLMProvider:  # noqa: ANN003
     """Get the default LLM provider from the API keys."""
-    if os.getenv("OPENAI_API_KEY"):
+    if os.getenv("OPENAI_API_KEY") or kwargs.get("openai_api_key"):
         return LLMProvider.OPENAI
-    if os.getenv("ANTHROPIC_API_KEY"):
+    if os.getenv("ANTHROPIC_API_KEY") or kwargs.get("anthropic_api_key"):
         return LLMProvider.ANTHROPIC
-    if os.getenv("MISTRAL_API_KEY"):
+    if os.getenv("MISTRAL_API_KEY") or kwargs.get("mistralai_api_key"):
         return LLMProvider.MISTRALAI
-    return LLMProvider.OPENAI
+    raise InvalidConfigError(LLMProvider.OPENAI.to_api_key_name(), "No LLM API key found")
 
 
 def default_config(**kwargs) -> Config:  # noqa: ANN003
@@ -556,9 +557,10 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
             models[usage] = parse_str_to_enum(model_name, LLMModel)
 
     llm_provider = parse_str_to_enum(
-        kwargs.pop("llm_provider", llm_provider_default_from_api_keys()),
+        kwargs.pop("llm_provider", llm_provider_default_from_api_keys(**kwargs)),
         LLMProvider,
     )
+
     default_storage_class = (
         StorageClass.CLOUD if os.getenv("PORTIA_API_KEY") else StorageClass.MEMORY
     )
