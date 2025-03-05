@@ -221,3 +221,38 @@ def test_next_state_after_tool_call_with_clarification_artifact() -> None:
     # Should return END even though tool.should_summarize is True
     # because the message contains a clarification artifact
     assert result == END
+
+
+def test_next_state_after_tool_call_with_list_of_clarifications() -> None:
+    """Test next state when tool call succeeds with a list of clarifications as artifact."""
+    tool = AdditionTool()
+    tool.should_summarize = True
+
+    clarifications = [
+        InputClarification(
+            argument_name="test1",
+            user_guidance="guidance1",
+            plan_run_id=PlanRunUUID(),
+        ),
+        InputClarification(
+            argument_name="test2",
+            user_guidance="guidance2",
+            plan_run_id=PlanRunUUID(),
+        ),
+    ]
+
+    messages: list[ToolMessage] = [
+        ToolMessage(
+            content="Success message",
+            tool_call_id="123",
+            name="test_tool",
+            artifact=clarifications,
+        ),
+    ]
+    state: MessagesState = {"messages": messages}  # type: ignore  # noqa: PGH003
+
+    result = next_state_after_tool_call(state, tool)
+
+    # Should return END even though tool.should_summarize is True
+    # because the message contains a list of clarifications as artifact
+    assert result == END
