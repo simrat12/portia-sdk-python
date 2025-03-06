@@ -87,7 +87,7 @@ class CLIConfig(BaseModel):
     )
 
 
-def generate_cli_option_from_pydantic_field(  # noqa: C901
+def generate_cli_option_from_pydantic_field(  # noqa: C901, PLR0912
     f: Callable[..., Any],
     field: str,
     info: FieldInfo,
