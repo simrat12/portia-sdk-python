@@ -545,7 +545,7 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
 
     """
     llm_model_name = kwargs.pop("llm_model_name", None)
-    models = {}
+    models = kwargs.pop("models", {})
     for model_usage in [
         PLANNING_MODEL_KEY,
         EXECUTION_MODEL_KEY,
@@ -554,7 +554,7 @@ def default_config(**kwargs) -> Config:  # noqa: ANN003
         SUMMARISER_MODEL_KEY,
     ]:
         model_name = kwargs.pop(model_usage, llm_model_name)
-        if model_name:
+        if model_name and model_name not in models:
             models[model_usage] = parse_str_to_enum(model_name, LLMModel)
 
     llm_provider = parse_str_to_enum(
