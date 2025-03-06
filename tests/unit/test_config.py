@@ -124,22 +124,22 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     assert c.model(EXECUTION_MODEL_KEY) == LLMModel.GPT_4_O_MINI
 
     # llm_model_name sets all models
-    c = Config.from_default(llm_model_name="mistral_large_latest")
-    assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
+    c = Config.from_default(llm_model_name="mistral_large")
+    assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE
+    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE
 
     # llm_provider sets default model for all providers
     c = Config.from_default(llm_provider="mistralai")
-    assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE
+    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE
 
     # With nothing specified, it chooses a model we have API keys for
     monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
     c = Config.from_default()
-    assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
-    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE_LATEST
+    assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE
+    assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE
 
     # With all API key set, correct default models are chosen
     monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
@@ -168,7 +168,7 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(InvalidConfigError):
         Config.from_default(
             storage_class=StorageClass.MEMORY,
-            llm_model_name=LLMModel.MISTRAL_LARGE_LATEST,
+            llm_model_name=LLMModel.MISTRAL_LARGE,
             execution_agent_type=ExecutionAgentType.DEFAULT,
             planning_agent_type=PlanningAgentType.DEFAULT,
         )
