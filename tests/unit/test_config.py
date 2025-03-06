@@ -124,7 +124,7 @@ def test_set_llms(monkeypatch: pytest.MonkeyPatch) -> None:
     assert c.model(EXECUTION_MODEL_KEY) == LLMModel.GPT_4_O_MINI
 
     # llm_model_name sets all models
-    c = Config.from_default(llm_model_name="mistral_large_latest")
+    c = Config.from_default(llm_model_name="mistral_large")
     assert c.model(PLANNING_MODEL_KEY) == LLMModel.MISTRAL_LARGE
     assert c.model(EXECUTION_MODEL_KEY) == LLMModel.MISTRAL_LARGE
 
