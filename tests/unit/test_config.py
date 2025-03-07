@@ -208,6 +208,7 @@ def test_getters() -> None:
     with pytest.raises(InvalidConfigError):
         c.must_get("portia_dashboard_url", str)
 
+    # no Portia API Key
     # mismatch between provider and model
     with pytest.raises(InvalidConfigError):
         Config.from_default(
