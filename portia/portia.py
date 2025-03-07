@@ -485,8 +485,7 @@ class Portia:
             Run: The updated run after execution.
 
         """
-        plan_run.state = PlanRunState.IN_PROGRESS
-        self.storage.save_plan_run(plan_run)
+        self._set_plan_run_state(plan_run, PlanRunState.IN_PROGRESS)
 
         dashboard_url = self.config.must_get("portia_dashboard_url", str)
 
