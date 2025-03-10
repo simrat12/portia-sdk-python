@@ -53,15 +53,6 @@ jobs:
             echo "Tag $VERSION does not exist. Creating new tag."
           fi
 
-      - name: Check if version is already tagged
-        run: |
-          if git rev-parse "$VERSION" >/dev/null 2>&1; then
-            echo "Tag $VERSION already exists. Skipping tag creation."
-            echo "tag_exists=true" >> $GITHUB_ENV
-          else
-            echo "Tag $VERSION does not exist. Creating new tag."
-          fi
-
       - name: Create Git tag
         if: env.tag_exists != 'true'
         run: |
