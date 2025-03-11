@@ -182,7 +182,7 @@ def test_portia_resume(portia: Portia) -> None:
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
     plan = portia.plan(query)
-    plan_run = portia._create_plan_run(plan)  # noqa: SLF001
+    plan_run = portia.create_plan_run(plan)
     plan_run = portia.resume(plan_run)
 
     assert plan_run.state == PlanRunState.COMPLETE
@@ -220,7 +220,7 @@ def test_portia_resume_edge_cases(portia: Portia) -> None:
     LLMWrapper.to_instructor = MagicMock(return_value=mock_response)
 
     plan = portia.plan(query)
-    plan_run = portia._create_plan_run(plan)  # noqa: SLF001
+    plan_run = portia.create_plan_run(plan)
 
     # Simulate run being in progress
     plan_run.state = PlanRunState.IN_PROGRESS
@@ -692,7 +692,7 @@ def test_portia_handle_clarification() -> None:
         mock.patch.object(portia, "_get_agent_for_step", return_value=mock_step_agent),
     ):
         plan = portia.plan("Raise a clarification")
-        plan_run = portia._create_plan_run(plan)  # noqa: SLF001
+        plan_run = portia.create_plan_run(plan)
 
         mock_step_agent.execute_sync.side_effect = [
             Output(
