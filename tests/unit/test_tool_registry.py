@@ -3,20 +3,25 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
 
+import mcp
 import pytest
+from mcp import ClientSession
 from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
 from portia.errors import DuplicateToolError, ToolNotFoundError
+from portia.mcp_session import StdioMcpClientConfig
 from portia.tool import Tool
 from portia.tool_registry import (
     AggregatedToolRegistry,
     InMemoryToolRegistry,
+    McpToolRegistry,
     ToolRegistry,
     generate_pydantic_model_from_json_schema,
 )
-from tests.utils import AdditionTool, MockTool, get_test_tool_context
+from tests.utils import AdditionTool, MockMcpSessionWrapper, MockTool, get_test_tool_context
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -233,6 +238,43 @@ def test_tool_registry_add_operators(mocker: MockerFixture) -> None:
     )
 
 
+def test_mcp_tool_registry_get_tools() -> None:
+    """Test getting tools from the MCPToolRegistry."""
+    mock_session = MagicMock(spec=ClientSession)
+    mock_session.list_tools.return_value = mcp.ListToolsResult(
+        tools=[
+            mcp.Tool(
+                name="test_tool",
+                description="I am a tool",
+                inputSchema={"type": "object", "properties": {"input": {"type": "string"}}},
+            ),
+            mcp.Tool(
+                name="test_tool_2",
+                description="I am another tool",
+                inputSchema={"type": "object", "properties": {"input": {"type": "number"}}},
+            ),
+        ],
+    )
+
+    with patch(
+        "portia.tool_registry.get_mcp_session",
+        new=MockMcpSessionWrapper(mock_session).mock_mcp_session,
+    ):
+        registry = McpToolRegistry(
+            StdioMcpClientConfig(server_name="mock_mcp", command="test", args=["test"]),
+        )
+        tools = registry.get_tools()
+    assert len(tools) == 2
+    assert tools[0].id == "mcp:mock_mcp:test_tool"
+    assert tools[0].name == "test_tool"
+    assert tools[0].description == "I am a tool"
+    assert issubclass(tools[0].args_schema, BaseModel)
+    assert tools[1].id == "mcp:mock_mcp:test_tool_2"
+    assert tools[1].name == "test_tool_2"
+    assert tools[1].description == "I am another tool"
+    assert issubclass(tools[1].args_schema, BaseModel)
+
+
 def test_generate_pydantic_model_from_json_schema() -> None:
     """Test generating a Pydantic model from a JSON schema."""
     json_schema = {
@@ -240,7 +282,7 @@ def test_generate_pydantic_model_from_json_schema() -> None:
         "properties": {
             "name": {"type": "string", "description": "The name of the user"},
             "age": {"type": "integer", "description": "The age of the user"},
-            "height": {"type": "number", "description": "The height of the user"},
+            "height": {"type": "number", "description": "The height of the user", "default": 185.2},
             "is_active": {"type": "boolean", "description": "Whether the user is active"},
             "pets": {
                 "type": "array",
@@ -268,7 +310,7 @@ def test_generate_pydantic_model_from_json_schema() -> None:
     assert model.model_fields["age"].default is PydanticUndefined
     assert model.model_fields["age"].description == "The age of the user"
     assert model.model_fields["height"].annotation is float
-    assert model.model_fields["height"].default is None
+    assert model.model_fields["height"].default == 185.2
     assert model.model_fields["height"].description == "The height of the user"
     assert model.model_fields["is_active"].annotation is bool
     assert model.model_fields["is_active"].default is None
