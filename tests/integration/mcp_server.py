@@ -26,6 +26,7 @@ def add_one(input_number: float) -> str:
     return str(input_number + 1)
 
 if __name__ == "__main__":
+    logger.info("Starting MCP server with args: %s", sys.argv)
     server.run(
         transport=sys.argv[1]  # type: ignore[arg-type]
         if len(sys.argv) > 1 and sys.argv[1] in ["stdio", "sse"]
