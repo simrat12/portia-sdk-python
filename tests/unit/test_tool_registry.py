@@ -291,6 +291,12 @@ def test_mcp_tool_registry_get_tool(mcp_tool_registry: McpToolRegistry) -> None:
     assert issubclass(tool.args_schema, BaseModel)
 
 
+def test_mcp_tool_registry_get_tool_not_found(mcp_tool_registry: McpToolRegistry) -> None:
+    """Test getting a tool from the MCPToolRegistry that does not exist."""
+    with pytest.raises(ToolNotFoundError):
+        mcp_tool_registry.get_tool("mcp:mock_mcp:non_existent_tool")
+
+
 def test_mcp_tool_registry_register_tool(mcp_tool_registry: McpToolRegistry) -> None:
     """Test MCPToolRegistry.register_tool raises NotImplementedError."""
     with pytest.raises(NotImplementedError):
