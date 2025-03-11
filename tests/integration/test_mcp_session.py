@@ -18,7 +18,7 @@ async def test_mcp_session_stdio() -> None:
         StdioMcpClientConfig(
             server_name="test_server",
             command="poetry",
-            args=["run", "python", str(SERVER_FILE_PATH), "stdio"],
+            args=["run", "python", str(SERVER_FILE_PATH.absolute()), "stdio"],
         ),
     ) as session:
         tools = await session.list_tools()
@@ -30,7 +30,7 @@ async def test_mcp_session_stdio() -> None:
 async def test_mcp_session_sse() -> None:
     """Test the MCP session with SSE."""
     process = await anyio.open_process(
-        ["poetry", "run", "python", str(SERVER_FILE_PATH), "sse"],
+        ["poetry", "run", "python", str(SERVER_FILE_PATH.absolute()), "sse"],
     )
     async with process, get_mcp_session(
         SseMcpClientConfig(
