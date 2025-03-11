@@ -291,6 +291,12 @@ def test_mcp_tool_registry_get_tool(mcp_tool_registry: McpToolRegistry) -> None:
     assert issubclass(tool.args_schema, BaseModel)
 
 
+def test_mcp_tool_registry_register_tool(mcp_tool_registry: McpToolRegistry) -> None:
+    """Test MCPToolRegistry.register_tool raises NotImplementedError."""
+    with pytest.raises(NotImplementedError):
+        mcp_tool_registry.register_tool(MockTool(id=MOCK_TOOL_ID))
+
+
 def test_generate_pydantic_model_from_json_schema() -> None:
     """Test generating a Pydantic model from a JSON schema."""
     json_schema = {
