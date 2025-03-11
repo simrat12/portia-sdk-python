@@ -1,8 +1,8 @@
 """MCP Session Tests."""
 
+import subprocess
 from pathlib import Path
 
-import anyio
 import mcp
 import pytest
 
@@ -29,17 +29,21 @@ async def test_mcp_session_stdio() -> None:
 @pytest.mark.asyncio
 async def test_mcp_session_sse() -> None:
     """Test the MCP session with SSE."""
-    process = await anyio.open_process(
-        ["poetry", "run", "python", str(SERVER_FILE_PATH.absolute()), "sse"],
+    process = subprocess.Popen(  # noqa: ASYNC220, S602
+        ["poetry", "run", "python", str(SERVER_FILE_PATH.absolute()), "sse"],  # noqa: S607
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
-    async with process, get_mcp_session(
-        SseMcpClientConfig(
-            server_name="test_server",
-            url="http://127.0.0.1:11385/sse",
-            sse_read_timeout=5,
-            timeout=5,
-        ),
-    ) as session:
-        tools = await session.list_tools()
-        assert isinstance(tools, mcp.ListToolsResult)
-        assert len(tools.tools) == 1
+    with process:
+        async with get_mcp_session(
+            SseMcpClientConfig(
+                server_name="test_server",
+                url="http://127.0.0.1:11385/sse",
+                sse_read_timeout=5,
+                timeout=5,
+            ),
+        ) as session:
+            tools = await session.list_tools()
+            assert isinstance(tools, mcp.ListToolsResult)
+            assert len(tools.tools) == 1
