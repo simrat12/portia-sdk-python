@@ -35,7 +35,7 @@ async def test_mcp_session_sse() -> None:
     async with process, get_mcp_session(
         SseMcpClientConfig(
             server_name="test_server",
-            url="http://localhost:11385/sse",
+            url="http://127.0.0.1:11385/sse",
             sse_read_timeout=5,
             timeout=5,
         ),
