@@ -24,6 +24,8 @@ from portia.tool_registry import (
 from tests.utils import AdditionTool, MockMcpSessionWrapper, MockTool, get_test_tool_context
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from pytest_mock import MockerFixture
 
     from portia.tool import Tool
@@ -238,8 +240,9 @@ def test_tool_registry_add_operators(mocker: MockerFixture) -> None:
     )
 
 
-def test_mcp_tool_registry_get_tools() -> None:
-    """Test getting tools from the MCPToolRegistry."""
+@pytest.fixture
+def mcp_tool_registry() -> Iterator[McpToolRegistry]:
+    """Fixture for a McpToolRegistry."""
     mock_session = MagicMock(spec=ClientSession)
     mock_session.list_tools.return_value = mcp.ListToolsResult(
         tools=[
@@ -260,10 +263,14 @@ def test_mcp_tool_registry_get_tools() -> None:
         "portia.tool_registry.get_mcp_session",
         new=MockMcpSessionWrapper(mock_session).mock_mcp_session,
     ):
-        registry = McpToolRegistry(
+        yield McpToolRegistry(
             StdioMcpClientConfig(server_name="mock_mcp", command="test", args=["test"]),
         )
-        tools = registry.get_tools()
+
+
+def test_mcp_tool_registry_get_tools(mcp_tool_registry: McpToolRegistry) -> None:
+    """Test getting tools from the MCPToolRegistry."""
+    tools = mcp_tool_registry.get_tools()
     assert len(tools) == 2
     assert tools[0].id == "mcp:mock_mcp:test_tool"
     assert tools[0].name == "test_tool"
@@ -273,6 +280,15 @@ def test_mcp_tool_registry_get_tools() -> None:
     assert tools[1].name == "test_tool_2"
     assert tools[1].description == "I am another tool"
     assert issubclass(tools[1].args_schema, BaseModel)
+
+
+def test_mcp_tool_registry_get_tool(mcp_tool_registry: McpToolRegistry) -> None:
+    """Test getting a tool from the MCPToolRegistry."""
+    tool = mcp_tool_registry.get_tool("mcp:mock_mcp:test_tool")
+    assert tool.id == "mcp:mock_mcp:test_tool"
+    assert tool.name == "test_tool"
+    assert tool.description == "I am a tool"
+    assert issubclass(tool.args_schema, BaseModel)
 
 
 def test_generate_pydantic_model_from_json_schema() -> None:
