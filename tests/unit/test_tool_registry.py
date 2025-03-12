@@ -398,6 +398,12 @@ def test_generate_pydantic_model_from_json_schema_union_types() -> None:
                 "description": "Company number to search",
                 "title": "Company Number",
             },
+            "additional_company_numbers": {
+                "type": "array",
+                "items": {"oneOf": [{"type": "string"}, {"type": "integer"}]},
+                "description": "Additional company numbers to search",
+                "title": "Additional Company Numbers",
+            },
         },
         "required": ["company_number"],
     }
@@ -411,3 +417,9 @@ def test_generate_pydantic_model_from_json_schema_union_types() -> None:
     assert model.model_fields["company_number"].annotation == Union[str, int]
     assert model.model_fields["company_number"].default is PydanticUndefined
     assert model.model_fields["company_number"].description == "Company number to search"
+    assert model.model_fields["additional_company_numbers"].annotation == list[Union[str, int]]
+    assert model.model_fields["additional_company_numbers"].default is None
+    assert (
+        model.model_fields["additional_company_numbers"].description
+        == "Additional company numbers to search"
+    )
