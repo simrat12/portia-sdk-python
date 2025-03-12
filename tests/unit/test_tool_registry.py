@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union
 from unittest.mock import MagicMock, patch
 
 import mcp
@@ -377,7 +377,7 @@ def test_generate_pydantic_model_from_json_schema() -> None:
 
 
 def test_generate_pydantic_model_from_json_schema_union_types() -> None:
-    """Test generating a Pydantic model from a JSON schema."""
+    """Test generating a Pydantic model from a JSON schema with union types."""
     json_schema = {
         "type": "object",
         "properties": {
@@ -423,3 +423,40 @@ def test_generate_pydantic_model_from_json_schema_union_types() -> None:
         model.model_fields["additional_company_numbers"].description
         == "Additional company numbers to search"
     )
+
+
+def test_generate_pydantic_model_from_json_schema_doesnt_handle_none_for_non_union_fields() -> None:
+    """Test for generate_pydantic_model_from_json_schema.
+
+    Test that generate_pydantic_model_from_json_schema maps 'null' to Any for non-union fields.
+    """
+    json_schema = {
+        "type": "object",
+        "properties": {
+            "name": {
+                "type": "null",
+                "default": None,
+                "description": "Array of user IDs to CC on the ticket",
+            },
+        },
+    }
+    model = generate_pydantic_model_from_json_schema("TestNullSchema", json_schema)
+    assert model.model_fields["name"].annotation is Any
+
+
+def test_generate_pydantic_model_from_json_schema_not_single_type_or_union_field() -> None:
+    """Test for generate_pydantic_model_from_json_schema.
+
+    Check it represents fields that are neither single type or union fields as Any type.
+    """
+    json_schema = {
+        "type": "object",
+        "properties": {
+            "unknown": {
+                "default": None,
+                "description": "Array of user IDs to CC on the ticket",
+            },
+        },
+    }
+    model = generate_pydantic_model_from_json_schema("TestNullSchema", json_schema)
+    assert model.model_fields["unknown"].annotation is Any
