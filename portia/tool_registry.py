@@ -19,7 +19,7 @@ import asyncio
 import os
 import re
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal, Union
 
 import httpx
 from pydantic import BaseModel, Field, create_model
@@ -654,8 +654,24 @@ def _generate_field(
         ),
     )
 
+def _map_pydantic_type(field_name: str, field: dict[str, Any]) -> type | Any:  # noqa: ANN401
+    match field:
+        case {"type": _}:
+            return _map_single_pydantic_type(field_name, field)
+        case {"oneOf": union_types} | {"anyOf": union_types}:
+            types = [
+                _map_single_pydantic_type(field_name, t, allow_nonetype=True)
+                for t in union_types
+            ]
+            return Union[*types]
+        case _:
+            logger().warning(f"Unsupported JSON schema type: {field.get('type')}: {field}")
+            return Any
 
-def _map_pydantic_type(field_name: str, field: dict[str, Any]) -> type | Any:  # noqa: ANN401, PLR0911
+
+def _map_single_pydantic_type(  # noqa: PLR0911
+    field_name: str, field: dict[str, Any], *, allow_nonetype: bool = False,
+) -> type | Any:  # noqa: ANN401
     match field.get("type"):
         case "string":
             return str
@@ -670,6 +686,10 @@ def _map_pydantic_type(field_name: str, field: dict[str, Any]) -> type | Any:  #
             return list[item_type]
         case "object":
             return generate_pydantic_model_from_json_schema(f"{field_name}_model", field)
+        case "null":
+            if allow_nonetype:
+                return None
+            raise ValueError("Null type is not allowed")
         case _:
-            logger().warning(f"Unsupported JSON schema type: {field.get('type')}")
+            logger().warning(f"Unsupported JSON schema type: {field.get('type')}: {field}")
             return Any

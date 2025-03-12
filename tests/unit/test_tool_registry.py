@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 from unittest.mock import MagicMock, patch
 
 import mcp
@@ -374,3 +374,40 @@ def test_generate_pydantic_model_from_json_schema() -> None:
     assert address_type.model_fields["zip"].description == "The zip of the user"
     assert model.model_fields["address"].default is None
     assert model.model_fields["address"].description == "The address of the user"
+
+
+def test_generate_pydantic_model_from_json_schema_union_types() -> None:
+    """Test generating a Pydantic model from a JSON schema."""
+    json_schema = {
+        "type": "object",
+        "properties": {
+            "collaborators": {
+                "anyOf": [
+                    {"items": {"type": "integer"}, "type": "array"},
+                    {"type": "null"},
+                ],
+                "default": None,
+                "description": "Array of user IDs to CC on the ticket",
+                "title": "Collaborator Ids",
+            },
+            "company_number": {
+                "anyOf": [
+                    {"type": "string"},
+                    {"type": "integer"},
+                ],
+                "description": "Company number to search",
+                "title": "Company Number",
+            },
+        },
+        "required": ["company_number"],
+    }
+    model = generate_pydantic_model_from_json_schema("TestUnionModel", json_schema)
+    assert model.model_fields["collaborators"].annotation == Union[list[int], None]
+    assert model.model_fields["collaborators"].default is None
+    assert (
+        model.model_fields["collaborators"].description
+        == "Array of user IDs to CC on the ticket"
+    )
+    assert model.model_fields["company_number"].annotation == Union[str, int]
+    assert model.model_fields["company_number"].default is PydanticUndefined
+    assert model.model_fields["company_number"].description == "Company number to search"
