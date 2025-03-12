@@ -72,7 +72,7 @@ jobs:
           PORTIA_API_ENDPOINT: ${{ secrets.PORTIA_EVAL_API_ENDPOINT }}
         run: |
           uv run cli.py query-planner update-dataset
-          EVAL_OUTPUT=$(uv run cli.py query-planner eval --model=gpt-4o-mini --threshold_file=query_planner/thresholds/thresholds.yaml)
+          EVAL_OUTPUT=$(uv run cli.py query-planner eval --model=gpt-4o-mini --threshold_file=query_planner/thresholds/thresholds_local.yaml)
           echo "eval_url=$(echo "$EVAL_OUTPUT" | grep -o '${LANGCHAIN_ENDPOINT}/.*')" >> $GITHUB_OUTPUT
           echo "eval_name=$(echo "$EVAL_OUTPUT" | grep -oP "experiment:\s*'\K[^']+")" >> $GITHUB_OUTPUT
           if echo "$EVAL_OUTPUT" | grep -q "EVAL BREACH"; then
@@ -95,7 +95,7 @@ jobs:
           PORTIA_API_ENDPOINT: ${{ secrets.PORTIA_EVAL_API_ENDPOINT }}
         run: |
           uv run cli.py agent update-dataset --slice_name=verifier
-          EVAL_OUTPUT=$(uv run cli.py agent eval --agent=verifier --slice_name=verifier --model=gpt-4o-mini --threshold_file=agents/thresholds/verifier_thresholds.yaml)
+          EVAL_OUTPUT=$(uv run cli.py agent eval --agent=verifier --slice_name=verifier --model=gpt-4o-mini --threshold_file=agents/thresholds/thresholds_local.yaml)
           echo "eval_url=$(echo "$EVAL_OUTPUT" | grep -o 'https://smith.langchain.com/.*')" >> $GITHUB_OUTPUT
           echo "eval_name=$(echo "$EVAL_OUTPUT" | grep -oP "experiment:\s*'\K[^']+")" >> $GITHUB_OUTPUT
           if echo "$EVAL_OUTPUT" | grep -q "EVAL BREACH"; then
