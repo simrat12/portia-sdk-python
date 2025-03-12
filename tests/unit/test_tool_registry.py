@@ -12,7 +12,6 @@ from pydantic import BaseModel
 from pydantic_core import PydanticUndefined
 
 from portia.errors import DuplicateToolError, ToolNotFoundError
-from portia.mcp_session import StdioMcpClientConfig
 from portia.tool import Tool
 from portia.tool_registry import (
     AggregatedToolRegistry,
@@ -241,8 +240,8 @@ def test_tool_registry_add_operators(mocker: MockerFixture) -> None:
 
 
 @pytest.fixture
-def mcp_tool_registry() -> Iterator[McpToolRegistry]:
-    """Fixture for a McpToolRegistry."""
+def mock_get_mcp_session() -> Iterator[None]:
+    """Fixture to mock the get_mcp_session function."""
     mock_session = MagicMock(spec=ClientSession)
     mock_session.list_tools.return_value = mcp.ListToolsResult(
         tools=[
@@ -263,9 +262,24 @@ def mcp_tool_registry() -> Iterator[McpToolRegistry]:
         "portia.tool_registry.get_mcp_session",
         new=MockMcpSessionWrapper(mock_session).mock_mcp_session,
     ):
-        yield McpToolRegistry(
-            StdioMcpClientConfig(server_name="mock_mcp", command="test", args=["test"]),
-        )
+        yield
+
+
+@pytest.fixture
+def mcp_tool_registry(mock_get_mcp_session: None) -> McpToolRegistry:  # noqa: ARG001
+    """Fixture for a McpToolRegistry."""
+    return McpToolRegistry.from_stdio_connection(
+        server_name="mock_mcp",
+        command="test",
+        args=["test"],
+    )
+
+
+@pytest.mark.usefixtures("mock_get_mcp_session")
+def test_mcp_tool_registry_from_sse_connection() -> None:
+    """Test constructing a McpToolRegistry from an SSE connection."""
+    mcp_registry_sse = McpToolRegistry.from_sse_connection(server_name="mock_mcp", url="http://localhost:8000")
+    assert isinstance(mcp_registry_sse, McpToolRegistry)
 
 
 def test_mcp_tool_registry_get_tools(mcp_tool_registry: McpToolRegistry) -> None:

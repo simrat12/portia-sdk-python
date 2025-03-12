@@ -19,14 +19,19 @@ import asyncio
 import os
 import re
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import httpx
 from pydantic import BaseModel, Field, create_model
 
 from portia.errors import DuplicateToolError, ToolNotFoundError
 from portia.logger import logger
-from portia.mcp_session import McpClientConfig, get_mcp_session
+from portia.mcp_session import (
+    McpClientConfig,
+    SseMcpClientConfig,
+    StdioMcpClientConfig,
+    get_mcp_session,
+)
 from portia.open_source_tools.calculator_tool import CalculatorTool
 from portia.open_source_tools.image_understanding_tool import ImageUnderstandingTool
 from portia.open_source_tools.llm_tool import LLMTool
@@ -429,6 +434,46 @@ class McpToolRegistry(ToolRegistry):
     def __init__(self, mcp_client_config: McpClientConfig) -> None:
         """Initialize the MCPToolRegistry with the given configuration."""
         self.tools = {t.id: t for t in self._load_tools(mcp_client_config)}
+
+    @classmethod
+    def from_sse_connection(
+        cls,
+        server_name: str,
+        url: str,
+        headers: dict[str, Any] | None = None,
+        timeout: float = 5,
+        sse_read_timeout: float = 60 * 5,
+    ) -> McpToolRegistry:
+        """Create a new MCPToolRegistry using an SSE connection."""
+        return cls(SseMcpClientConfig(
+            server_name=server_name,
+            url=url,
+            headers=headers,
+            timeout=timeout,
+            sse_read_timeout=sse_read_timeout,
+        ))
+
+    @classmethod
+    def from_stdio_connection(  # noqa: PLR0913g
+        cls,
+        server_name: str,
+        command: str,
+        args: list[str] | None = None,
+        env: dict[str, str] | None = None,
+        encoding: str = "utf-8",
+        encoding_error_handler: Literal["strict", "ignore", "replace"] = "strict",
+    ) -> McpToolRegistry:
+        """Create a new MCPToolRegistry using a stdio connection."""
+        return cls(
+            StdioMcpClientConfig(
+                server_name=server_name,
+                command=command,
+                args=args if args is not None else [],
+                env=env,
+                encoding=encoding,
+                encoding_error_handler=encoding_error_handler,
+            ),
+        )
 
     def _load_tools(self, mcp_client_config: McpClientConfig) -> list[PortiaMcpTool]:
         """Get a list of tools from an MCP server wrapped at Portia tools.
