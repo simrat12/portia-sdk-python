@@ -193,6 +193,12 @@ class Step(BaseModel):
         ...,
         description="The unique output id of this step i.e. $best_offers.",
     )
+    condition: str | None = Field(
+        default=None,
+        description="A human readable condition which controls if the step is run or not. "
+        "If provided the condition will be evaluated and the step skipped if false. "
+        "The step will run by default if not provided.",
+    )
 
 
 class ReadOnlyStep(Step):
@@ -295,16 +301,15 @@ class Plan(BaseModel):
     def validate_plan(self) -> Plan:
         """Validate the plan.
 
-        Checks that the plan has at least one step, that all outputs are unique, and that all
-        steps use valid outputs as inputs.
+        Checks that all outputs + conditions are unique.
 
         Returns:
             Plan: The validated plan.
 
         """
-        outputs = [step.output for step in self.steps]
+        outputs = [step.output + (step.condition or "") for step in self.steps]
         if len(outputs) != len(set(outputs)):
-            raise ValueError("Outputs must be unique")
+            raise ValueError("Outputs + conditions must be unique")
         return self
 
 
