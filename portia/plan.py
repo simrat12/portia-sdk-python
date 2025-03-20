@@ -61,6 +61,7 @@ class PlanBuilder:
         tool_id: str | None = None,
         output: str | None = None,
         inputs: list[Variable] | None = None,
+        condition: str | None = None,
     ) -> PlanBuilder:
         """Add a step to the plan.
 
@@ -69,6 +70,8 @@ class PlanBuilder:
             tool_id (str | None): The ID of the tool used in this step, if applicable.
             output (str | None): The unique output ID for the result of this step.
             inputs (list[Variable] | None): The inputs to the step
+            condition (str | None): A human readable condition which controls if the step should run
+              or not.
 
         Returns:
             PlanBuilder: The builder instance with the new step added.
@@ -78,7 +81,15 @@ class PlanBuilder:
             inputs = []
         if output is None:
             output = f"$output_{len(self.steps)}"
-        self.steps.append(Step(task=task, output=output, inputs=inputs, tool_id=tool_id))
+        self.steps.append(
+            Step(
+                task=task,
+                output=output,
+                inputs=inputs,
+                tool_id=tool_id,
+                condition=condition,
+            ),
+        )
         return self
 
     def input(
@@ -101,15 +112,32 @@ class PlanBuilder:
             PlanBuilder: The builder instance with the new input added.
 
         """
-        if step_index is None:
-            step_index = len(self.steps) - 1
-        if len(self.steps) == 0:
-            raise ValueError("No steps in the plan")
+        step_index = self._get_step_index_or_raise(step_index)
         if description is None:
             description = ""
         self.steps[step_index].inputs.append(
             Variable(name=name, value=value, description=description),
         )
+        return self
+
+    def condition(
+        self,
+        condition: str,
+        step_index: int | None = None,
+    ) -> PlanBuilder:
+        """Add a condition to the chosen step in the plan (default is the last step).
+
+        Args:
+            condition (str): The condition to be added to the chosen step.
+            step_index (int | None): The index of the step to add the condition to.
+                If not provided, the condition will be added to the last step.
+
+        Returns:
+            PlanBuilder: The builder instance with the new condition added.
+
+        """
+        step_index = self._get_step_index_or_raise(step_index)
+        self.steps[step_index].condition = condition
         return self
 
     def build(self) -> Plan:
@@ -124,6 +152,23 @@ class PlanBuilder:
             plan_context=PlanContext(query=self.query, tool_ids=tool_ids),
             steps=self.steps,
         )
+
+    def _get_step_index_or_raise(self, step_index: int | None) -> int:
+        """Get the index of the step to add the condition to.
+
+        Args:
+            step_index (int | None): The index of the step to add the condition to. If not provided,
+                                    it will default to the last step.
+
+        Returns:
+            int: The index of the step to add the condition to.
+
+        """
+        if step_index is None:
+            step_index = len(self.steps) - 1
+        if step_index < 0 or step_index >= len(self.steps):
+            raise ValueError("Invalid step index or no steps in the plan")
+        return step_index
 
 
 class Variable(BaseModel):
