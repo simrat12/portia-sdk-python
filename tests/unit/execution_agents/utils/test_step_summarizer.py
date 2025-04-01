@@ -7,13 +7,15 @@ from typing import TYPE_CHECKING, Any
 from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 
+from portia.plan import Step
+
 if TYPE_CHECKING:
     import pytest
     from pydantic import BaseModel
 
 from portia.execution_agents.base_execution_agent import Output
 from portia.execution_agents.utils.step_summarizer import StepSummarizer
-from tests.utils import get_test_llm_wrapper
+from tests.utils import AdditionTool, get_test_llm_wrapper
 
 
 class MockInvoker:
@@ -59,6 +61,7 @@ class MockInvoker:
 def test_summarizer_model_normal_output(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the summarizer model with valid tool message."""
     summary = AIMessage(content="Short summary")
+    tool = AdditionTool()
     mock_invoker = MockInvoker(response=summary)
     monkeypatch.setattr(ChatOpenAI, "invoke", mock_invoker.invoke)
     monkeypatch.setattr(ChatOpenAI, "with_structured_output", mock_invoker.with_structured_output)
@@ -66,12 +69,14 @@ def test_summarizer_model_normal_output(monkeypatch: pytest.MonkeyPatch) -> None
     tool_message = ToolMessage(
         content="Tool output content",
         tool_call_id="123",
-        name="test_tool",
+        name=tool.name,
         artifact=Output(value="Tool output value"),
     )
 
     summarizer_model = StepSummarizer(
         llm=get_test_llm_wrapper().to_langchain(),
+        tool=tool,
+        step=Step(task="Test task", output="$output"),
     )
     result = summarizer_model.invoke({"messages": [tool_message]})
 
@@ -97,6 +102,8 @@ def test_summarizer_model_non_tool_message(monkeypatch: pytest.MonkeyPatch) -> N
 
     summarizer_model = StepSummarizer(
         llm=get_test_llm_wrapper().to_langchain(),
+        tool=AdditionTool(),
+        step=Step(task="Test task", output="$output"),
     )
     result = summarizer_model.invoke({"messages": [ai_message]})
 
@@ -112,6 +119,8 @@ def test_summarizer_model_no_messages(monkeypatch: pytest.MonkeyPatch) -> None:
 
     summarizer_model = StepSummarizer(
         llm=get_test_llm_wrapper().to_langchain(),
+        tool=AdditionTool(),
+        step=Step(task="Test task", output="$output"),
     )
     result = summarizer_model.invoke({"messages": []})
 
@@ -141,7 +150,11 @@ def test_summarizer_model_error_handling(monkeypatch: pytest.MonkeyPatch) -> Non
         artifact=Output(value="Tool output value"),
     )
 
-    summarizer_model = StepSummarizer(llm=get_test_llm_wrapper().to_langchain())
+    summarizer_model = StepSummarizer(
+        llm=get_test_llm_wrapper().to_langchain(),
+        tool=AdditionTool(),
+        step=Step(task="Test task", output="$output"),
+    )
     result = summarizer_model.invoke({"messages": [tool_message]})
 
     # Should return original message without summaries when error occurs
