@@ -157,3 +157,6 @@ __all__ = [
     "logger",
     "open_source_tool_registry",
 ]
+
+from portia.trading import UniswapTrader
+__all__.append("UniswapTrader")

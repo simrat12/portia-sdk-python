@@ -315,7 +315,7 @@ def parse_str_to_enum(value: str | E, enum_type: type[E]) -> E:
 
 
 PLANNER_DEFAULT_MODELS = {
-    LLMProvider.OPENAI: LLMModel.O_3_MINI,
+    LLMProvider.OPENAI: LLMModel.GPT_4_O,
     LLMProvider.ANTHROPIC: LLMModel.CLAUDE_3_5_SONNET,
     LLMProvider.MISTRALAI: LLMModel.MISTRAL_LARGE,
     LLMProvider.GOOGLE_GENERATIVE_AI: LLMModel.GEMINI_2_0_FLASH,
