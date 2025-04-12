@@ -185,16 +185,26 @@ class UniswapTrader:
             to_eoa=to_eoa
         )
         
-        # Convert request to dict for JSON serialization
-        request_dict = request.model_dump(by_alias=True)
+        # Convert request to dict for JSON serialization, excluding None values
+        # and using camelCase aliases
+        request_dict = request.model_dump(by_alias=True, exclude_none=True)
+        
+        # Ensure variableEstimates is included even if None
+        if "variableEstimates" not in request_dict and variable_estimates is None:
+            request_dict["variableEstimates"] = None
+            
         logger.debug(f"Request dict: {request_dict}")
+        
+        # Manually serialize to JSON to avoid pydantic quirks
+        request_json = json.dumps(request_dict)
+        logger.debug(f"Request JSON: {request_json}")
         
         # Send the request to the Enso API
         logger.info(f"Sending request to Enso API at {self.enso_api_url}/shortcuts/route")
         response = requests.post(
             f"{self.enso_api_url}/shortcuts/route",
             headers=self.headers,
-            json=request_dict
+            data=request_json
         )
         
         logger.debug(f"Response status code: {response.status_code}")
