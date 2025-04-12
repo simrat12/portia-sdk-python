@@ -55,12 +55,15 @@ class UniswapRouteResponse(BaseModel):
     """Response model for Uniswap route calculation."""
     
     gas: str
-    amount_out: dict
-    price_impact: float
-    fee_amount: List[str]
-    created_at: int
+    amount_out: str = Field(..., alias="amountOut")
+    price_impact: float = Field(..., alias="priceImpact")
+    created_at: int = Field(..., alias="createdAt")
     tx: dict
     route: List[dict]
+
+    class Config:
+        populate_by_name = True
+        # ensures the JSON uses camelCase keys instead of snake_case
 
 
 class UniswapTrader:
